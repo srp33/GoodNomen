@@ -1,4 +1,4 @@
-![GoodNomen logo]
+![GoodNomen logo](logo.png)
 
 ## Introduction
 
