@@ -619,7 +619,8 @@ server <- function(input, output, session) {
     if (input$editThisColumn != "") {
       commentify("Automatching")
     }
-    writeToScript(paste0("editThisColumn <- \"", input$editThisColumn, "\""))
+    editThisColumn <- gsub("\"", "\\\\\"", input$editThisColumn)
+    writeToScript(paste0("editThisColumn <- \"", editThisColumn, "\""))
     if (input$editThisColumn == "") {
       toggleModal(session, 'matchColumnModal', toggle = "open")
     }
@@ -773,7 +774,8 @@ server <- function(input, output, session) {
       values$unmatched <- setdiff(values$unmatched, NA)
       #WRITE TO SCRIPT 
       commentify("Manual standardization")
-      writeToScript(paste0("editThisColumn <- \"", input$editThisColumn, "\""))
+      editThisColumn <- gsub("\"", "\\\\\"", input$editThisColumn)
+      writeToScript(paste0("editThisColumn <- \"", editThisColumn, "\""))
       toggleModal(session, 'manualModal', toggle = "open")
     }
   })
