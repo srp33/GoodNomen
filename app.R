@@ -7,7 +7,6 @@ library(writexl)
 library(shinyBS)
 library(shinycssloaders)
 library(rhandsontable)
-#library(shinyjs)
 
 #set file upload limit to 50 MB
 options(shiny.maxRequestSize=50*1024^2)
@@ -28,8 +27,9 @@ commentify <- function(myStr, header = F) {
   }
   writeToScript(comment)
 }
+
 commentify("Good Nomen", T)
-writeToScript("Please ensure that your data file and thesaurus file (optional) are in the same directory as this script before executing.")
+writeToScript("# Please ensure that your data file and thesaurus file (if using an uploaded thesaurus) are in the same directory as this script before executing.")
 writeToScript("library(readr)")
 writeToScript("library(dplyr)")
 writeToScript("library(stringr)")
@@ -57,6 +57,7 @@ ui <- navbarPage(title = 'Good Nomen', id = 'tabs',
                                         br(),
                                         fileInput(inputId = "file1", label = "Choose Input File:", 
                                                   multiple = FALSE, accept = c(".tsv", ".txt", ".csv", ".xls", ".xlsx"), width = NULL, buttonLabel = "Browse...", placeholder = "No file selected"),
+                                        textOutput("inputError"), tags$head(tags$style("#inputError {color: red;}")),
                                         uiOutput("headerSelector"),
                                         uiOutput("thesaurusSelector"), 
                                         conditionalPanel(condition = "input.whichThesaurus == 'Upload a thesaurus'", uiOutput("inputUploadedThesaurus")),
@@ -69,9 +70,9 @@ ui <- navbarPage(title = 'Good Nomen', id = 'tabs',
                                         #'input.header' relies on the condition that a file has been loaded, so this conditional panel prevents the action button from appearing before a file has been loaded
                                         conditionalPanel(condition = "(input.header && input.whichThesaurus != 'Upload a thesaurus')", #  || (input.inputUploadedThesaurus) && input.whichThesaurus == 'Upload a thesaurus' (input.uploadedThesaurus)
                                                          actionButton("button", "Next", style="color: #fff; background-color: #2ca25f; border-color: #2ca25f")),
+                                        textOutput("error"), tags$head(tags$style("#error {color: red;}")),
                                         conditionalPanel(condition = "input.whichThesaurus == 'Upload a thesaurus'", 
-                                                         uiOutput("uploadThesaurusButton")),
-                                        textOutput("error")),
+                                                         uiOutput("uploadThesaurusButton"))),
                            mainPanel(div(id = "startTable", conditionalPanel(condition = 'input.header', spinner(('table'))))))),
                  
 
@@ -162,16 +163,8 @@ ui <- navbarPage(title = 'Good Nomen', id = 'tabs',
 
 # Server ------------------------------------------------------------------
 server <- function(input, output, session) { 
-
-  session$allowReconnect(TRUE)
   
-
-  # useShinyjs()
-  # observe({
-  #   if (is.null(input$uploadedThesaurus)) {
-  #     disable("button")
-  #   }
-  # })
+  session$allowReconnect(TRUE)
   
   #provide an initial table so that spinners do not cause confusion
   initialTable <- as.data.frame("No data available")
@@ -214,27 +207,24 @@ server <- function(input, output, session) {
   output$contactNote <- renderText("Questions and comments can be directed to stephen_piccolo@byu.edu.")
 
   #download thesaurus files
-  n <- 3
-  withProgress(message = "Initializing databases", {
-    #system("wget -O Modified_NCI.rds \"https://osf.io/f3mw7/download\"")
-    incProgress(1/n)
-    #system("wget -O Modified_ICD.rds \"https://osf.io/a8hmt/download\"")
-    incProgress(1/n)
-    #system("wget -O Modified_GeneNames.rds \"https://osf.io/kbv82/download\"")
-    incProgress(1/n)
+  n <- 4
+  withProgress(message = "Initializing terminologies", {
+    system("wget -O Modified_NCI.rds \"https://osf.io/dmwv6/download\"")
+    incProgress(1/n, detail = "NCI")
+    system("wget -O Modified_ICD.rds \"https://osf.io/a8hmt/download\"")
+    incProgress(1/n, detail = "ICD")
+    system("wget -O Modified_HGNC.rds \"https://osf.io/rcdq6/download\"")
+    incProgress(1/n, detail = "HGNC")
+    system("wget -O Modified_MeSH.rds \"https://osf.io/v82m9/download\"")
+    incProgress(1/n, detail = "MeSH")
   })
   
   
 # Define Functions --------------------------------------------------------
   #reading input file
   readInputFile <- function(inFile, useColNames = T) { 
-    extension = substr(inFile$datapath, (nchar(inFile$datapath) - 3), nchar(inFile$datapath))
-    values$extension = extension
+    extension <- substr(inFile$datapath, (nchar(inFile$datapath) - 3), nchar(inFile$datapath))
     functionExtension <- ""
-    values$inputName = paste0(substr(input$file1, 0, (nchar(input$file1) - 4)), "_modified")
-    if ("xlsx" == extension) {
-      values$inputName = paste0(substr(input$file1, 0, (nchar(input$file1) - 5)), "_modified")
-    }
     #use inFile[1] to get the file name because the variable inFile has 4 elements that refer to name, size, file type, and location
     if ((".txt" == extension) | (".tsv" == extension)) {
       inputData <- read_tsv(inFile$datapath, col_names = useColNames)
@@ -257,7 +247,8 @@ server <- function(input, output, session) {
       commentify("Read input file")
       writeToScript(paste0("datasetInput <- read_", functionExtension, "(\"", inFile[1], "\", col_names = ", useColNames, ")"))
     }
-    else if (any(grepl("Load thesaurus file", outputText)) & is.null(input$rename) & input$automatch == 0 & input$manual == 0) {
+    #adds text to outputText for uploaded thesaurus file
+    else if (any(grepl("Load thesaurus file", outputText)) & input$columnRename == 0 & input$automatch == 0 & input$manual == 0) {
       outputText <<- gsub("system.+", paste0("openThesaurus <- read_", functionExtension, "(\"", inFile[1], "\", col_names = ", useColNames, ")"), outputText)
       outputText <<- gsub("thesaurus <- readRDS.+", "thesaurus <- openThesaurus", outputText)
     }
@@ -364,48 +355,72 @@ server <- function(input, output, session) {
     })
   })
   observeEvent(input$file1, ignoreInit = T, {
-    #initialize variables so functionality is enabled and user can click between tabs without pushing "next"
-    values$datasetInput <- readInputFile(input$file1)
-    values$datasetInputHeaders <- names(values$datasetInput)
-    values$columns <- names(values$datasetInput)
-    output$table <- renderTable(values$datasetInput)
-    output$viewTable <- renderTable(values$datasetInput)
-    output$secondViewTable <- renderTable(values$datasetInput)
-    output$finalTable <- renderTable(values$datasetInput)
-
-    output$thesaurusSelector <- renderUI({
-      radioButtons("whichThesaurus", label = div("Select Thesaurus:", helpButton("NCI Thesaurus: cancer terms, ICD-10-CM: disease classification, HGNC: gene names")), choices = c("NCI Thesaurus", "ICD-10-CM", "HGNC", "Upload a thesaurus"))
-    })
-
-    output$editColumnSelector <- renderUI({
-      selectizeInput('editColumn', label = "Select column to rename:", choices = c("", names(values$datasetInput)), options = list(placeholder = 'Select column or start typing...'))
-    })
+    withProgress(message = "Initializing elements", {
+      #initialize variables so functionality is enabled and user can click between tabs without pushing "next"
+      output$inputError <- tryCatch({
+        values$datasetInput <- readInputFile(input$file1)
+        renderText("")
+      }, error = function(e) {
+        renderText("An error has been detected. Please verify that the file type matches the extension.")
+      })
+      values$extension <- substr(input$file1$datapath, (nchar(input$file1$datapath) - 3), nchar(input$file1$datapath))
+      values$inputName = paste0(substr(input$file1, 0, (nchar(input$file1) - 4)), "_modified")
+      if ("xlsx" == values$extension) {
+        values$inputName = paste0(substr(input$file1, 0, (nchar(input$file1) - 5)), "_modified")
+      }
+      values$datasetInputHeaders <- names(values$datasetInput)
+      incProgress(1/13, detail = "header")
+      values$columns <- names(values$datasetInput)
+      incProgress(1/13, detail = "column")
+      output$table <- renderTable(values$datasetInput)
+      incProgress(1/13, detail = "table")
+      output$viewTable <- renderTable(values$datasetInput)
+      incProgress(1/13, detail = "table")
+      output$secondViewTable <- renderTable(values$datasetInput)
+      incProgress(1/13, detail = "table")
+      output$finalTable <- renderTable(values$datasetInput)
+      incProgress(1/13, detail = "table")
     
-    output$outputFileName <- renderUI({
-      textInput('outputFileName', label = div("Output File Name (without extension):", helpButton("Enter a name for the output file (do not include extension).")), value = values$inputName)
-    })
+      output$thesaurusSelector <- renderUI({
+        radioButtons("whichThesaurus", label = div("Select Thesaurus:", helpButton("NCI Thesaurus: cancer terms, ICD-10-CM: disease classification, HGNC: gene names, MeSH: medical subject headings")), choices = c("NCI Thesaurus", "ICD-10-CM", "HGNC", "MeSH", "Upload a thesaurus"))
+      })
+      incProgress(1/13, detail = "thesaurus selector")
     
-    output$extensionSelector <- renderUI({
-      selectInput('extension', label = div("Select Extension:", helpButton("Select an extension for the output file.")), choices = c(".txt", ".tsv", ".csv", ".xlsx"), selected = values$extension) #.xls
-    })
-    
-    output$editThisColumnSelector <- renderUI({
-      selectizeInput('editThisColumn', label = "Select column to standardize:", choices = c("", values$columns), options = list(placeholder = 'Select column or start typing...'))
-    })
-    
-    output$editDataSelector <- renderUI({
-      selectizeInput('editData', label = "Enter terms that have a common meaning:", choices = values$unmatched, multiple = T)
-    })
-    
-    output$inputUploadedThesaurus <- renderUI({
-      fileInput(inputId = "uploadedThesaurus", label = div("Choose Thesaurus File:", helpButton("Uploaded thesauri must have 2 columns. The first should contain preferred terms. The second should contain synonymns separated by vertical bars (\"|\").")), 
-                multiple = FALSE, accept = c(".tsv", ".txt", ".csv", ".xls", ".xlsx"), width = NULL, buttonLabel = "Browse...", placeholder = "No file selected")
+      output$editColumnSelector <- renderUI({
+        selectizeInput('editColumn', label = "Select column to rename:", choices = c("", names(values$datasetInput)), options = list(placeholder = 'Select column or start typing...'))
+      })
+      incProgress(1/13, detail = "column selector")
+      
+      output$outputFileName <- renderUI({
+        textInput('outputFileName', label = div("Output File Name (without extension):", helpButton("Enter a name for the output file (do not include extension).")), value = values$inputName)
+      })
+      incProgress(1/13, detail = "file name selector")
+      
+      output$extensionSelector <- renderUI({
+        selectInput('extension', label = div("Select Extension:", helpButton("Select an extension for the output file.")), choices = c(".txt", ".tsv", ".csv", ".xlsx"), selected = values$extension) #.xls
+      })
+      incProgress(1/13, detail = "extension selector")
+      
+      output$editThisColumnSelector <- renderUI({
+        selectizeInput('editThisColumn', label = "Select column to standardize:", choices = c("", values$columns), options = list(placeholder = 'Select column or start typing...'))
+      })
+      incProgress(1/13, detail = "edit column selector")
+      
+      output$editDataSelector <- renderUI({
+        selectizeInput('editData', label = "Enter terms that have a common meaning:", choices = values$unmatched, multiple = T)
+      })
+      incProgress(1/13, detail = "edit data selector")
+      
+      output$inputUploadedThesaurus <- renderUI({
+        fileInput(inputId = "uploadedThesaurus", label = div("Choose Thesaurus File:", helpButton("Uploaded thesauri must have 2 columns. The first should contain preferred terms. The second should contain synonymns separated by vertical bars (\"|\").")), 
+                  multiple = FALSE, accept = c(".tsv", ".txt", ".csv", ".xls", ".xlsx"), width = NULL, buttonLabel = "Browse...", placeholder = "No file selected")
+      })
+      incProgress(1/13, detail = "thesaurus selector")
     })
   })
 
 # Input Header ------------------------------------------------------------
   observeEvent(input$header, ignoreInit = T, {
-    #values$header <- input$header
     #WRITE TO SCRIPT 
     if (any(grepl("header", outputText))) {
       outputText <<- gsub("header <- [[:digit:]]+", paste0("header <- ", input$header), outputText)
@@ -430,7 +445,6 @@ server <- function(input, output, session) {
     if (input$header == 0) {
       values$datasetInput <- readInputFile(input$file1, useColNames = F)
       values$header <- 0
-      #update
     }
     else {
       if (!all(names(values$datasetInput) == values$datasetInputHeaders)) {
@@ -447,10 +461,10 @@ server <- function(input, output, session) {
     thesaurusName <- ""
     download <- ""
     if (input$whichThesaurus == "NCI Thesaurus") {
-      values$thesaurus <- readRDS("Modified_Thesaurus.rds")
+      values$thesaurus <- readRDS("Modified_NCI.rds")
       names(values$thesaurus) <- c("PreferredName", "Synonyms")
       thesaurusName <- "NCI"
-      download <- "system(\"wget -O Modified_NCI.rds \\\"https://osf.io/f3mw7/download\\\"\")"
+      download <- "system(\"wget -O Modified_NCI.rds \\\"https://osf.io/dmwv6/download\\\"\")"
     }
     else if (input$whichThesaurus == "ICD-10-CM") {
       values$thesaurus <- readRDS("Modified_ICD.rds")
@@ -459,16 +473,23 @@ server <- function(input, output, session) {
       download <- "system(\"wget -O Modified_ICD.rds \\\"https://osf.io/a8hmt/download\\\"\")"
     }
     else if (input$whichThesaurus == "HGNC") {
-      values$thesaurus <- readRDS("Modified_GeneNames.rds")
+      values$thesaurus <- readRDS("Modified_HGNC.rds")
       names(values$thesaurus) <- c("PreferredName", "Synonyms")
       thesaurusName <- "GeneNames"
-      download <- "system(\"wget -O Modified_GeneNames.rds \\\"https://osf.io/kbv82/download\\\"\")"
+      download <- "system(\"wget -O Modified_HGNC.rds \\\"https://osf.io/rcdq6/download\\\"\")"
+    }
+    else if (input$whichThesaurus == "MeSH") {
+      values$thesaurus <- readRDS("Modified_MeSH.rds")
+      names(values$thesaurus) <- c("PreferredName", "Synonyms")
+      thesaurusName <- "MeSH"
+      download <- "system(\"wget -O Modified_MeSH.rds \\\"https://osf.io/v82m9/download\\\"\")"
     }
     else if (input$whichThesaurus == "Upload a thesaurus") {
       #handled by observeEvent for input$uploadedThesaurus
     }
     #WRITE TO SCRIPT
-    if (any(grepl("Load thesaurus file", outputText)) & is.null(input$rename) & is.null(input$automatch) & is.null(input$manual)) {
+    #if thesaurus is uploaded, writing to outputText is handled in the readInputFile function
+    if (input$whichThesaurus != "Upload a thesaurus" & any(grepl("Load thesaurus file", outputText)) & input$columnRename == 0 & input$automatch == 0 & input$manual == 0) {
       outputText <<- gsub("system.+", download, outputText)
       outputText <<- gsub("thesaurus <- readRDS.+", paste0("thesaurus <- readRDS(\"Modified_", thesaurusName, ".rds\")"), outputText)
     }
@@ -486,7 +507,9 @@ server <- function(input, output, session) {
   })
   
 # Input Thesaurus (update standardized options) --------------------------------------------------------- 
-  observeEvent(input$whichThesaurus, {
+  observeEvent({
+    input$whichThesaurus
+    input$uploadedThesaurus}, {
     values$letterList <- c()
     values$suggestion <- ""
     for (j in 1:nchar(values$editColumn)) {
@@ -510,10 +533,13 @@ server <- function(input, output, session) {
   })
 
 # Upload Thesaurus --------------------------------------------------------
-  observeEvent(input$uploadedThesaurus, {
-    validate(
-      need(try(values$thesaurus <- readInputFile(input$uploadedThesaurus)), "Please verify that file type matches extension")
-    )
+  observeEvent(input$uploadedThesaurus, ignoreInit = T, {
+    output$error <- tryCatch({
+      values$thesaurus <- readInputFile(input$uploadedThesaurus)
+      renderText("")
+    }, error = function(e) {
+      renderText("An error has been detected. Please verify that the file type matches the extension.")
+    })
     if (ncol(values$thesaurus) >= 2) {
       names(values$thesaurus) <- c("PreferredName", "Synonyms")
       values$thesaurus <- values$thesaurus[order(values$thesaurus$PreferredName),]
@@ -745,11 +771,8 @@ server <- function(input, output, session) {
     else {
       values$unmatched <- setdiff(values$datasetInput[[input$editThisColumn]][values$start:nrow(values$datasetInput)], values$thesaurus$PreferredName)
       values$unmatched <- setdiff(values$unmatched, NA)
-      #print(paste("unmatched: ", length(values$unmatched)))
       #WRITE TO SCRIPT 
-      #if (!any(grepl("Manual standardization", outputText))) {
-        commentify("Manual standardization")
-      #}
+      commentify("Manual standardization")
       writeToScript(paste0("editThisColumn <- \"", input$editThisColumn, "\""))
       toggleModal(session, 'manualModal', toggle = "open")
     }
@@ -836,7 +859,6 @@ server <- function(input, output, session) {
     #script output
     names(outputText) <- NULL
     outputText <- as.data.frame(outputText)
-    #outputText <- outputText[outputText != "*will be deleted*"]
     output$script1 <- downloadHandler(filename = function() {
         paste("good_nomen_R_script", ".txt", sep = "")}, content = function(file) {
         write.table(rbind(outputText, saveUntilEnd), file, row.names = F, col.names = F, quote = F)
