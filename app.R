@@ -7,6 +7,7 @@ library(writexl)
 library(shinyBS)
 library(shinycssloaders)
 library(rhandsontable)
+library(DT)
 
 #set file upload limit to 50 MB
 options(shiny.maxRequestSize=50*1024^2)
@@ -29,7 +30,7 @@ commentify <- function(myStr, header = F) {
 }
 
 commentify("Good Nomen", T)
-writeToScript("# Please ensure that your data file and thesaurus file (if using an uploaded thesaurus) are in the same directory as this script before executing.")
+writeToScript("# Please ensure that your data file and terminology file (if using an uploaded terminology) are in the same directory as this script before executing.")
 writeToScript("library(readr)")
 writeToScript("library(dplyr)")
 writeToScript("library(stringr)")
@@ -41,59 +42,39 @@ helpButton <- function(message = "content", placement = "right") {
   return(tipify(icon("question-circle"), title = message, placement = placement, trigger = "hover"))
 }
 
-#define function for spinner (loading widget) 
-spinner <- function(table) {
-  withSpinner(tableOutput(table), color = "#bdbdbd", size = 0.5)
-}
-
 
 # UI ----------------------------------------------------------------------
-ui <- navbarPage(title = 'Good Nomen', id = 'tabs',
-                 
+ui <- navbarPage(title = "Good Nomen", id = 'tabs',
+#ui <- navbarPage(titlePanel(title=div(img(src="logo.png", height = 50), "Good Nomen")), id = 'tabs',
 
 # Load Data ---------------------------------------------------------------
                  tabPanel('Load Data', sidebarLayout(
-                           sidebarPanel(textOutput("uploadInstructions"),
+                   #sidebarPanel(
+                           sidebarPanel(img(src='Logo.png', align = "right", height = 100),
+                                        textOutput("welcomeMessage"),
+                                        br(),
+                                        textOutput("uploadInstructions"),
                                         br(),
                                         fileInput(inputId = "file1", label = "Choose Input File:", 
                                                   multiple = FALSE, accept = c(".tsv", ".txt", ".csv", ".xls", ".xlsx"), width = NULL, buttonLabel = "Browse...", placeholder = "No file selected"),
                                         textOutput("inputError"), tags$head(tags$style("#inputError {color: red;}")),
                                         uiOutput("headerSelector"),
-                                        uiOutput("thesaurusSelector"), 
-                                        conditionalPanel(condition = "input.whichThesaurus == 'Upload a thesaurus'", uiOutput("inputUploadedThesaurus")),
-                                        #warning if user uploads a thesaurus with less than 2 columns
-                                        bsModal('badThesaurusModal', title = "Error", trigger = 'input.inputUploadedThesaurus',
-                                                textOutput('badThesaurusNote'), tags$head(tags$style("#badThesaurusModal {color: red;}")), tags$head(tags$style("#badThesaurusNote {color: black;}"))),
-                                        #warning if user does not upload a thesaurus
-                                        bsModal('noThesaurusModal', title = "Error", trigger = 'input.inputUploadedThesaurus',
-                                                textOutput('noThesaurusNote'), tags$head(tags$style("#noThesaurusModal {color: red;}")), tags$head(tags$style("#noThesaurusNote {color: black;}"))),
+                                        uiOutput("terminologySelector"), 
+                                        conditionalPanel(condition = "input.whichTerminology == 'Upload a terminology'", uiOutput("inputUploadedTerminology")),
+                                        #warning if user uploads a terminology with less than 2 columns
+                                        bsModal('badTerminologyModal', title = "Error", trigger = 'input.inputUploadedTerminology',
+                                                textOutput('badTerminologyNote'), tags$head(tags$style("#badTerminologyModal {color: red;}")), tags$head(tags$style("#badTerminologyNote {color: black;}"))),
+                                        #warning if user does not upload a terminology
+                                        bsModal('noTerminologyModal', title = "Error", trigger = 'input.inputUploadedTerminology',
+                                                textOutput('noTerminologyNote'), tags$head(tags$style("#noTerminologyModal {color: red;}")), tags$head(tags$style("#noTerminologyNote {color: black;}"))),
                                         #'input.header' relies on the condition that a file has been loaded, so this conditional panel prevents the action button from appearing before a file has been loaded
-                                        conditionalPanel(condition = "(input.header && input.whichThesaurus != 'Upload a thesaurus')", #  || (input.inputUploadedThesaurus) && input.whichThesaurus == 'Upload a thesaurus' (input.uploadedThesaurus)
+                                        conditionalPanel(condition = "(input.header && input.whichTerminology != 'Upload a terminology')", #  || (input.inputUploadedTerminology) && input.whichTerminology == 'Upload a terminology' (input.uploadedTerminology)
                                                          actionButton("button", "Next", style="color: #fff; background-color: #2ca25f; border-color: #2ca25f")),
                                         textOutput("error"), tags$head(tags$style("#error {color: red;}")),
-                                        conditionalPanel(condition = "input.whichThesaurus == 'Upload a thesaurus'", 
-                                                         uiOutput("uploadThesaurusButton"))),
-                           mainPanel(div(id = "startTable", conditionalPanel(condition = 'input.header', spinner(('table'))))))),
-                 
-
-# Update Column Names -----------------------------------------------------
-                 tabPanel('Update Column Names', value = 'updateColumnNames',
-                          sidebarPanel(width = 4,
-                                       textOutput('columnNote'),
-                                       br(),
-                                       uiOutput("editColumnSelector"),
-                                       conditionalPanel(condition = 'input.editColumn', selectizeInput('newColumn', label = "Select new column name:", choices = NULL, options = list(placeholder = 'Please wait for options to load...', create = T))),
-                                       #warning if user does not select column to rename and new column name
-                                       bsModal('columnModal', title = "Error", trigger = 'input.newColumn',
-                                               textOutput('columnErrorNote'), tags$head(tags$style("#columnModal {color: red;}")), tags$head(tags$style("#columnErrorNote {color: black;}"))),
-                                       #warning if user selects a new column name that is already being used as a column name
-                                       bsModal('equalModal', title = "Error", trigger = 'input.newColumn',
-                                               textOutput('equalNote'), tags$head(tags$style("#equalModal {color: red;}")), tags$head(tags$style("#equalNote {color: black;}"))),
-                                       actionButton('columnRename', "Rename", style = "color: #fff; background-color: #337ab7; border-color: #2e6da4"),
-                                       actionButton('columnSubmit', "Next", style = "color: #fff; background-color: #2ca25f; border-color: #2ca25f")),
-                          mainPanel(spinner('secondViewTable'))),
-                 
-
+                                        conditionalPanel(condition = "input.whichTerminology == 'Upload a terminology'", 
+                                                         uiOutput("uploadTerminologyButton"))),
+                            mainPanel())),
+                
 # Edit Data ---------------------------------------------------------------
                  tabPanel('Edit Data', value = 'editTable', 
                           sidebarPanel(width = 4, 
@@ -103,7 +84,7 @@ ui <- navbarPage(title = 'Good Nomen', id = 'tabs',
                                        uiOutput("editThisColumnSelector"),
                                        bsModal('matchColumnModal', title = "Error", trigger = 'input.editThisColumn',
                                                textOutput('matchColumnNote'), tags$head(tags$style("#matchColumnModal {color: red;}")), tags$head(tags$style("#matchColumnNote {color: black;}"))),
-                                       actionButton('automatch', label = div("Automatch", helpButton("Matches will be found based on synonyms in the NCI Thesaurus.")), style = "color: #fff; background-color: #337ab7; border-color: #2e6da4"),
+                                       actionButton('automatch', label = div("Auto-match", helpButton("Matches will be found based on synonyms in the selected terminology.")), style = "color: #fff; background-color: #337ab7; border-color: #2e6da4"),
                                        actionButton('manual', label = div("Standardize Manually", helpButton("Update selected terms to manually chosen standardized term.")), style = "color: #fff; background-color: #337ab7; border-color: #2e6da4"),
                                        actionButton('editNext', "Next", style = "color: #fff; background-color: #2ca25f; border-color: #2ca25f")),
                           mainPanel(bsModal('automatchModal', title = "Review Matches", trigger = "input.automatch", 
@@ -125,7 +106,7 @@ ui <- navbarPage(title = 'Good Nomen', id = 'tabs',
                                             br(),
                                             uiOutput("editDataSelector"),
                                             checkboxInput("makeNA", "These terms represent missing values"),
-                                            conditionalPanel(condition = "input.makeNA == false", selectizeInput('newData', label = "Select thesaurus term:", choices = c(""), options = list(placeholder = 'Please wait for options to load...', create = T))),
+                                            conditionalPanel(condition = "input.makeNA == false", selectizeInput('newData', label = "Select terminology term:", choices = c(""), options = list(placeholder = 'Please wait for options to load...', create = T))),
                                             actionButton('manualSave', label = "Save", style = "color: #fff; background-color: #337ab7; border-color: #2e6da4"),
                                             actionButton('manualClose', label = "Cancel", style = "color: #fff; background-color: #6baed6; border-color: #6baed6"),
                                             tags$head(tags$style("#manualModal .modal-footer{ display:none}"))),
@@ -137,8 +118,23 @@ ui <- navbarPage(title = 'Good Nomen', id = 'tabs',
                                             actionButton('makeNAContinue', label = "Continue", style = "color: #fff; background-color: #337ab7; border-color: #2e6da4"),
                                             actionButton('makeNACancel', label = "Cancel", style = "color: #fff; background-color: #6baed6; border-color: #6baed6"),
                                             tags$head(tags$style("#makeNAModal .modal-footer{ display:none}"))),
-                                    spinner('viewTable'))),
+                                    DTOutput('singleColumn'))),
                  
+# Update Column Names -----------------------------------------------------
+tabPanel('Update Column Names', value = 'updateColumnNames',
+         sidebarPanel(width = 4,
+                      textOutput('columnNote'),
+                      br(),
+                      uiOutput("editColumnSelector"),
+                      conditionalPanel(condition = 'input.editColumn', selectizeInput('newColumn', label = "Select new column name:", choices = NULL, options = list(placeholder = 'Please wait for options to load...', create = T))),
+                      #warning if user does not select column to rename and new column name
+                      bsModal('columnModal', title = "Error", trigger = 'input.newColumn',
+                              textOutput('columnErrorNote'), tags$head(tags$style("#columnModal {color: red;}")), tags$head(tags$style("#columnErrorNote {color: black;}"))),
+                      #warning if user selects a new column name that is already being used as a column name
+                      bsModal('equalModal', title = "Error", trigger = 'input.newColumn',
+                              textOutput('equalNote'), tags$head(tags$style("#equalModal {color: red;}")), tags$head(tags$style("#equalNote {color: black;}"))),
+                      actionButton('columnRename', "Rename", style = "color: #fff; background-color: #337ab7; border-color: #2e6da4"),
+                      actionButton('columnSubmit', "Next", style = "color: #fff; background-color: #2ca25f; border-color: #2ca25f"))),
 
 # Save Data ---------------------------------------------------------------
                  tabPanel('Save Data', value = 'finalReport', 
@@ -147,14 +143,14 @@ ui <- navbarPage(title = 'Good Nomen', id = 'tabs',
                             br(),
                             uiOutput('outputFileName'),
                             uiOutput('extensionSelector'),
-                            downloadButton('editReport', label = div("Download Output File", helpButton("Output file contains updated data.")), style = "color: #fff; background-color: #337ab7; border-color: #2e6da4"),
-                            downloadButton('script1', label = div("Download RScript", helpButton("RScript contains all of the commands necessary to create the output file from the original file.")), style = "color: #fff; background-color: #2ca25f; border-color: #2ca25f")),
-                          mainPanel(
-                            spinner('finalTable'),
-                            br(),
-                            downloadButton('editReport2', label = div("Download Output File", helpButton("Output file contains updated data.")), style = "color: #fff; background-color: #337ab7; border-color: #2e6da4"),
-                            downloadButton('script2', label = div("Download RScript", helpButton("RScript contains all of the commands necessary to create the output file from the original file.")), style = "color: #fff; background-color: #2ca25f; border-color: #2ca25f"))),
-
+                            actionButton('generateOutput', label = div("Generate Output", helpButton("Press to generate output files. If any changes are made after the button has been pressed, 
+                                                                                                     it must be pressed again to update the output.")), style = "color: #fff; background-color: #337ab7; border-color: #2e6da4"),
+                            conditionalPanel(condition = 'input.generateOutput',
+                              downloadButton('editReport', label = div("Download Output File", helpButton("Output file contains updated data.")), 
+                                             style = "color: #fff; background-color: #337ab7; border-color: #2e6da4"),
+                              downloadButton('script1', label = div("Download RScript", helpButton("RScript contains all of the commands necessary to create the output file from the original file.")), 
+                                             style = "color: #fff; background-color: #2ca25f; border-color: #2ca25f")))),
+                         
 # Contact -----------------------------------------------------------------
                 tabPanel('Contact', value = 'contactPage',
                          textOutput("contactNote")))
@@ -166,54 +162,62 @@ server <- function(input, output, session) {
   
   session$allowReconnect(TRUE)
   
-  #provide an initial table so that spinners do not cause confusion
-  initialTable <- as.data.frame("No data available")
-  names(initialTable) <- "Please upload a data file"
-  output$table <- renderTable(initialTable)
-  output$viewTable <- renderTable(initialTable)
-  output$secondViewTable <- renderTable(initialTable)
-  output$finalTable <- renderTable(initialTable)
-  
   values <- reactiveValues(datasetInput = NULL, datasetInputHeaders = NULL, header = 1, start = 1, extension = "", inputName = "", editColumn = "", 
-                           firstEditData = "", manualSuggestion = "", newColumn = "", thesaurus = NULL, suggestion = "", letterList = c(),
-                           columns = c(), selectedThesaurus = NULL, nameSelectedThesaurus = "", unmatched = c(), standardized = c())
+                           firstEditData = "", manualSuggestion = "", newColumn = "", terminology = NULL, suggestion = "", letterList = c(),
+                           columns = c(), nameSelectedTerminology = "", unmatched = c(), standardized = c(), column = c(), editThisColumn = "")
 
+  #define function for rendering single column
+  renderColumn <- function() {
+    # if (is.null(input$editThisColumn)) {
+    #   values$column <- as.data.frame(values$datasetInput[1,][values$start:nrow(values$datasetInput)])
+    # }
+    # else {
+    #   #values$column <- as.data.frame(values$datasetInput[[input$editThisColumn]][values$start:nrow(values$datasetInput)])
+       values$column <- as.data.frame(values$datasetInput[[values$editThisColumn]][values$start:nrow(values$datasetInput)])
+    # }
+    if (ncol(values$column) > 0) {
+      names(values$column) <- input$editThisColumn
+    }
+    output$singleColumn <- renderDT(values$column, options = list(pageLength = 20), rownames = F)
+  }
+  
   # Initialize Instructions -------------------------------------------------
-  output$uploadInstructions <- renderText("Please upload a file containing unique patient data on each row and clinical information in each column. 
+  output$welcomeMessage <- renderText("Welcome to Good Nomen, an interface for mapping clinical data files based on standardized terminologies.")
+  output$uploadInstructions <- renderText("Please upload a file containing patient data on each row and clinical variables in each column. 
                                           Accepted file types include .txt, .tsv, .csv, .xls, and .xlsx.")
-  output$badThesaurusNote <- renderText("The uploaded thesaurus must contain at least 2 columns. Please upload a new file or select one of the default options.")
-  output$noThesaurusNote <- renderText("No thesaurus selected. Please upload a file or select one of the default options.")
+  output$badTerminologyNote <- renderText("The uploaded terminology must contain at least 2 columns. Please upload a new file or select one of the default options.")
+  output$noTerminologyNote <- renderText("No terminology selected. Please upload a file or select one of the default options.")
   output$columnNote <- renderText("If desired, select a column to rename and a new column name. When a column to rename is selected, 
                                   the new column name box will be autofilled with a suggested name if a matching term is found in the 
-                                  thesaurus. This term may be changed. Press \"Rename\" to update. Multiple columns may be renamed. 
+                                  terminology. This term may be changed. Press \"Rename\" to update. Multiple columns may be renamed. 
                                   When finished, press \"Next.\"")
   output$outputNote <- renderText("Enter a name for the output file and select an extension. Do not include the extension in the file name.")
   output$columnErrorNote <- renderText("You must select a column to rename and a new column name. Please close this window and select these items.")
   output$equalNote <- renderText("The selected new column name is already being used as a column name. Please close this window and select a different name.")
   output$editNote <- renderText("Data may be standardized automatically or manually. First select the name of the column containing the data you wish to edit.
-                                If you would like to automate the matching process, press \"Automatch.\" The data will be processed and then a pop-up window 
+                                If you would like to automate the matching process, press \"Auto-match.\" The data will be processed and then a pop-up window 
                                 will appear and ask you to review the matches. If you would like to manually update the data, press \"Standardize Manually.\" 
                                 A different pop-up window will appear with instructions on how to edit the data. When finished, press \"Next.\"")
-  output$automatchNote <- renderText("The following matches were found based on the thesaurus. Accept a match by checking the box in the row. 
+  output$automatchNote <- renderText("The following matches were found based on the terminology. Accept a match by checking the box in the row. 
                                      Press \"Save\" to apply these changes to your data and close this window. If a match is accepted, all occurrences 
                                      of the current term will be changed to the standardized term.")
   output$matchColumnNote <- renderText("You must select a column to edit before proceeding. Please close this window and select a column.")
   output$noMatchNote <- renderText("No matches found.")
-  output$manualNote <- renderText("In the box below, enter terms that have a common meaning then select a thesaurus term that has the same meaning. The options 
-                                  in the first box are terms that do not already match a preferred term in the thesaurus. To apply a change to your data, press 
-                                  \"Save.\" All occurrences of the terms in the first box will be replaced with the selected thesaurus term.")
-  output$noNewNote <- renderText("No thesaurus term selected. Please close this window and select a thesaurus term.")
+  output$manualNote <- renderText("In the box below, enter terms that have a common meaning then select a terminology term that has the same meaning. The options 
+                                  in the first box are terms that do not already match a preferred term in the terminology. To apply a change to your data, press 
+                                  \"Save.\" All occurrences of the terms in the first box will be replaced with the selected terminology term.")
+  output$noNewNote <- renderText("No terminology term selected. Please close this window and select a terminology term.")
   output$makeNANote <- renderText("The selected terms will be stored as \"NA.\"")
-  output$contactNote <- renderText("Questions and comments can be directed to stephen_piccolo@byu.edu.")
+  output$contactNote <- renderText("For questions and comments, please visit piccolo.byu.edu/Contact.aspx. The source code for Good Nomen can be found at https://github.com/srp33/GoodNomen.")
 
-  #download thesaurus files
+  #download terminology files
   n <- 4
   withProgress(message = "Initializing terminologies", {
     system("wget -O Modified_NCI.rds \"https://osf.io/dmwv6/download\"")
     incProgress(1/n, detail = "NCI")
     system("wget -O Modified_ICD.rds \"https://osf.io/a8hmt/download\"")
     incProgress(1/n, detail = "ICD")
-    system("wget -O Modified_HGNC.rds \"https://osf.io/rcdq6/download\"")
+    system("wget -O Modified_HGNC.rds \"https://osf.io/q4snj/download\"")
     incProgress(1/n, detail = "HGNC")
     system("wget -O Modified_MeSH.rds \"https://osf.io/v82m9/download\"")
     incProgress(1/n, detail = "MeSH")
@@ -247,16 +251,16 @@ server <- function(input, output, session) {
       commentify("Read input file")
       writeToScript(paste0("datasetInput <- read_", functionExtension, "(\"", inFile[1], "\", col_names = ", useColNames, ")"))
     }
-    #adds text to outputText for uploaded thesaurus file
-    else if (any(grepl("Load thesaurus file", outputText)) & input$columnRename == 0 & input$automatch == 0 & input$manual == 0) {
-      outputText <<- gsub("system.+", paste0("openThesaurus <- read_", functionExtension, "(\"", inFile[1], "\", col_names = ", useColNames, ")"), outputText)
-      outputText <<- gsub("thesaurus <- readRDS.+", "thesaurus <- openThesaurus", outputText)
+    #adds text to outputText for uploaded terminology file
+    else if (any(grepl("Load terminology file", outputText)) & input$columnRename == 0 & input$automatch == 0 & input$manual == 0) {
+      outputText <<- gsub("system.+", paste0("openTerminology <- read_", functionExtension, "(\"", inFile[1], "\", col_names = ", useColNames, ")"), outputText)
+      outputText <<- gsub("terminology <- readRDS.+", "terminology <- openTerminology", outputText)
     }
     else {
-      commentify("Load thesaurus file")
-      writeToScript(paste0("openThesaurus <- read_", functionExtension, "(\"", inFile[1], "\", col_names = ", useColNames, ")"))
-      writeToScript("thesaurus <- openThesaurus")
-      writeToScript("names(thesaurus) <- c(\"PreferredName\", \"Synonyms\")")
+      commentify("Load terminology file")
+      writeToScript(paste0("openTerminology <- read_", functionExtension, "(\"", inFile[1], "\", col_names = ", useColNames, ")"))
+      writeToScript("terminology <- openTerminology")
+      writeToScript("names(terminology) <- c(\"PreferredName\", \"Synonyms\")")
     }
     return(inputData)
   }
@@ -319,9 +323,9 @@ server <- function(input, output, session) {
     writeToScript("for (item in editData) {")
     writeToScript("    datasetInput[[editThisColumn]][datasetInput[[editThisColumn]] == item] = newData")
     writeToScript("}")
-    updateSelectizeInput(session, 'newData', label = "Select thesaurus term:", choices = c("", newData, as.character(values$manualSuggestion), as.character(values$letterList)), 
-                         options = list(placeholder = 'Select thesaurus term or start typing...', create = T), selected = "", server = T)
-    values$unmatched <- setdiff(values$datasetInput[[input$editThisColumn]][values$start:nrow(values$datasetInput)], values$thesaurus$PreferredName)
+    updateSelectizeInput(session, 'newData', label = "Select terminology term:", choices = c("", newData, as.character(values$manualSuggestion), as.character(values$letterList)), 
+                         options = list(placeholder = 'Select terminology term or start typing...', create = T), selected = "", server = T)
+    values$unmatched <- setdiff(values$datasetInput[[input$editThisColumn]][values$start:nrow(values$datasetInput)], values$terminology$PreferredName)
     values$unmatched <- setdiff(values$unmatched, NA)
     return()
   }
@@ -329,21 +333,21 @@ server <- function(input, output, session) {
 
 # Change Tab --------------------------------------------------------------
   observeEvent(input$button, ignoreInit = T, {
-    if (input$whichThesaurus == "Upload a thesaurus" & is.null(input$uploadedThesaurus)) {
-      toggleModal(session, 'noThesaurusModal', toggle = "open")
+    if (input$whichTerminology == "Upload a terminology" & is.null(input$uploadedTerminology)) {
+      toggleModal(session, 'noTerminologyModal', toggle = "open")
     }
     else {
-      updateTabsetPanel(session, 'tabs', selected = 'updateColumnNames')
+      updateTabsetPanel(session, 'tabs', selected = 'editTable')
     }
   })
-  observeEvent(input$thesaurusButton, ignoreInit = T, {
-    updateTabsetPanel(session, 'tabs', selected = 'updateColumnNames')
-  })
-  observeEvent(input$columnSubmit, ignoreInit = T, {
+  observeEvent(input$terminologyButton, ignoreInit = T, {
     updateTabsetPanel(session, 'tabs', selected = 'editTable')
   })
-  observeEvent(input$editNext, ignoreInit = T, {
+  observeEvent(input$columnSubmit, ignoreInit = T, {
     updateTabsetPanel(session, 'tabs', selected = 'finalReport')
+  })
+  observeEvent(input$editNext, ignoreInit = T, {
+    updateTabsetPanel(session, 'tabs', selected = 'updateColumnNames')
   })
   
 # Input File1 -------------------------------------------------------------
@@ -369,53 +373,48 @@ server <- function(input, output, session) {
         values$inputName = paste0(substr(input$file1, 0, (nchar(input$file1) - 5)), "_modified")
       }
       values$datasetInputHeaders <- names(values$datasetInput)
-      incProgress(1/13, detail = "header")
+      incProgress(1/9, detail = "header")
       values$columns <- names(values$datasetInput)
-      incProgress(1/13, detail = "column")
-      output$table <- renderTable(values$datasetInput)
-      incProgress(1/13, detail = "table")
-      output$viewTable <- renderTable(values$datasetInput)
-      incProgress(1/13, detail = "table")
-      output$secondViewTable <- renderTable(values$datasetInput)
-      incProgress(1/13, detail = "table")
-      output$finalTable <- renderTable(values$datasetInput)
-      incProgress(1/13, detail = "table")
-    
-      output$thesaurusSelector <- renderUI({
-        radioButtons("whichThesaurus", label = div("Select Thesaurus:", helpButton("NCI Thesaurus: cancer terms, ICD-10-CM: disease classification, HGNC: gene names, MeSH: medical subject headings")), choices = c("NCI Thesaurus", "ICD-10-CM", "HGNC", "MeSH", "Upload a thesaurus"))
+      incProgress(1/9, detail = "column")
+      values$editThisColumn <- names(values$datasetInput)[1] 
+      output$terminologySelector <- renderUI({
+        radioButtons("whichTerminology", label = div("Select terminology:", helpButton("NCI Thesaurus: cancer terms, ICD-10-CM: disease classification, HGNC: gene names, MeSH: medical subject headings")), 
+                     choices = c("NCI Thesaurus", "ICD-10-CM", "HGNC", "MeSH", "Upload a terminology"))
       })
-      incProgress(1/13, detail = "thesaurus selector")
+      incProgress(1/9, detail = "terminology selector")
     
       output$editColumnSelector <- renderUI({
         selectizeInput('editColumn', label = "Select column to rename:", choices = c("", names(values$datasetInput)), options = list(placeholder = 'Select column or start typing...'))
       })
-      incProgress(1/13, detail = "column selector")
+      incProgress(1/9, detail = "column selector")
       
       output$outputFileName <- renderUI({
         textInput('outputFileName', label = div("Output File Name (without extension):", helpButton("Enter a name for the output file (do not include extension).")), value = values$inputName)
       })
-      incProgress(1/13, detail = "file name selector")
+      incProgress(1/9, detail = "file name selector")
       
       output$extensionSelector <- renderUI({
         selectInput('extension', label = div("Select Extension:", helpButton("Select an extension for the output file.")), choices = c(".txt", ".tsv", ".csv", ".xlsx"), selected = values$extension) #.xls
       })
-      incProgress(1/13, detail = "extension selector")
+      incProgress(1/9, detail = "extension selector")
       
       output$editThisColumnSelector <- renderUI({
-        selectizeInput('editThisColumn', label = "Select column to standardize:", choices = c("", values$columns), options = list(placeholder = 'Select column or start typing...'))
+        #default is to display first column of dataset
+        selectizeInput('editThisColumn', label = "Select column to standardize:", choices = c("", values$columns), options = list(placeholder = 'Select column or start typing...'), selected = values$editThisColumn)#names(values$datasetInput)[1])
       })
-      incProgress(1/13, detail = "edit column selector")
+      incProgress(1/9, detail = "edit column selector")
       
       output$editDataSelector <- renderUI({
         selectizeInput('editData', label = "Enter terms that have a common meaning:", choices = values$unmatched, multiple = T)
       })
-      incProgress(1/13, detail = "edit data selector")
+      incProgress(1/9, detail = "edit data selector")
       
-      output$inputUploadedThesaurus <- renderUI({
-        fileInput(inputId = "uploadedThesaurus", label = div("Choose Thesaurus File:", helpButton("Uploaded thesauri must have 2 columns. The first should contain preferred terms. The second should contain synonymns separated by vertical bars (\"|\").")), 
+      output$inputUploadedTerminology <- renderUI({
+        fileInput(inputId = "uploadedTerminology", label = div("Choose File:", helpButton("Uploaded terminologies must have 2 columns. The first should contain preferred terms. 
+                                                                                          The second should contain a list of synonyms separated by vertical bars (\"|\").")), 
                   multiple = FALSE, accept = c(".tsv", ".txt", ".csv", ".xls", ".xlsx"), width = NULL, buttonLabel = "Browse...", placeholder = "No file selected")
       })
-      incProgress(1/13, detail = "thesaurus selector")
+      incProgress(1/9, detail = "terminology selector")
     })
   })
 
@@ -445,114 +444,117 @@ server <- function(input, output, session) {
     if (input$header == 0) {
       values$datasetInput <- readInputFile(input$file1, useColNames = F)
       values$header <- 0
+      values$start <- 1
     }
     else {
       if (!all(names(values$datasetInput) == values$datasetInputHeaders)) {
         values$datasetInput <- readInputFile(input$file1, useColNames = T)
         values$header <- input$header
+        values$start <- 1
       }
     }
     values$columns <- names(values$datasetInput)
+    renderColumn()
   })
 
-# Input Thesaurus (load file) ---------------------------------------------------------
-  observeEvent(input$whichThesaurus, ignoreInit = T, ignoreNULL = T, {
-    values$nameSelectedThesaurus <- input$whichThesaurus
-    thesaurusName <- ""
+# Input terminology (load file) ---------------------------------------------------------
+  observeEvent(input$whichTerminology, ignoreInit = T, ignoreNULL = T, {
+    values$nameSelectedTerminology <- input$whichTerminology
+    terminologyName <- ""
     download <- ""
-    if (input$whichThesaurus == "NCI Thesaurus") {
-      values$thesaurus <- readRDS("Modified_NCI.rds")
-      names(values$thesaurus) <- c("PreferredName", "Synonyms")
-      thesaurusName <- "NCI"
+    if (input$whichTerminology == "NCI Thesaurus") {
+      values$terminology <- readRDS("Modified_NCI.rds")
+      names(values$terminology) <- c("PreferredName", "Synonyms")
+      terminologyName <- "NCI"
       download <- "system(\"wget -O Modified_NCI.rds \\\"https://osf.io/dmwv6/download\\\"\")"
     }
-    else if (input$whichThesaurus == "ICD-10-CM") {
-      values$thesaurus <- readRDS("Modified_ICD.rds")
-      names(values$thesaurus) <- c("PreferredName", "Synonyms")
-      thesaurusName <- "ICD"
+    else if (input$whichTerminology == "ICD-10-CM") {
+      values$terminology <- readRDS("Modified_ICD.rds")
+      names(values$terminology) <- c("PreferredName", "Synonyms")
+      terminologyName <- "ICD"
       download <- "system(\"wget -O Modified_ICD.rds \\\"https://osf.io/a8hmt/download\\\"\")"
     }
-    else if (input$whichThesaurus == "HGNC") {
-      values$thesaurus <- readRDS("Modified_HGNC.rds")
-      names(values$thesaurus) <- c("PreferredName", "Synonyms")
-      thesaurusName <- "GeneNames"
-      download <- "system(\"wget -O Modified_HGNC.rds \\\"https://osf.io/rcdq6/download\\\"\")"
+    else if (input$whichTerminology == "HGNC") {
+      values$terminology <- readRDS("Modified_HGNC.rds")
+      names(values$terminology) <- c("PreferredName", "Synonyms")
+      terminologyName <- "GeneNames"
+      download <- "system(\"wget -O Modified_HGNC.rds \\\"https://osf.io/q4snj/download\\\"\")"
     }
-    else if (input$whichThesaurus == "MeSH") {
-      values$thesaurus <- readRDS("Modified_MeSH.rds")
-      names(values$thesaurus) <- c("PreferredName", "Synonyms")
-      thesaurusName <- "MeSH"
+    else if (input$whichTerminology == "MeSH") {
+      values$terminology <- readRDS("Modified_MeSH.rds")
+      names(values$terminology) <- c("PreferredName", "Synonyms")
+      terminologyName <- "MeSH"
       download <- "system(\"wget -O Modified_MeSH.rds \\\"https://osf.io/v82m9/download\\\"\")"
     }
-    else if (input$whichThesaurus == "Upload a thesaurus") {
-      #handled by observeEvent for input$uploadedThesaurus
+    else if (input$whichTerminology == "Upload a terminology") {
+      #handled by observeEvent for input$uploadedTerminology
     }
     #WRITE TO SCRIPT
-    #if thesaurus is uploaded, writing to outputText is handled in the readInputFile function
-    if (input$whichThesaurus != "Upload a thesaurus" & any(grepl("Load thesaurus file", outputText)) & input$columnRename == 0 & input$automatch == 0 & input$manual == 0) {
+    if (input$whichTerminology != "Upload a terminology" & any(grepl("Load terminology file", outputText)) & input$columnRename == 0 & input$automatch == 0 & input$manual == 0) {
       outputText <<- gsub("system.+", download, outputText)
-      outputText <<- gsub("thesaurus <- readRDS.+", paste0("thesaurus <- readRDS(\"Modified_", thesaurusName, ".rds\")"), outputText)
+      outputText <<- gsub("terminology <- readRDS.+", paste0("terminology <- readRDS(\"Modified_", terminologyName, ".rds\")"), outputText)
     }
-    else if (input$whichThesaurus != "Upload a thesaurus") {
-      commentify("Load thesaurus file")
+    else if (input$whichTerminology != "Upload a terminology") {
+      commentify("Load terminology file")
       writeToScript(download)
-      writeToScript(paste0("thesaurus <- readRDS(\"Modified_", thesaurusName, ".rds\")"))
-      writeToScript("names(thesaurus) <- c(\"PreferredName\", \"Synonyms\")")
+      writeToScript(paste0("terminology <- readRDS(\"Modified_", terminologyName, ".rds\")"))
+      writeToScript("names(terminology) <- c(\"PreferredName\", \"Synonyms\")")
     }
-    values$thesaurus <- as.data.frame(lapply(values$thesaurus, unlist))
-    values$thesaurus <- values$thesaurus[order(values$thesaurus$PreferredName),]
+    #there is no else statement for an uploaded terminology because writing to outputText is handled in the readInputFile function
+    values$terminology <- as.data.frame(lapply(values$terminology, unlist))
+    values$terminology <- values$terminology[order(values$terminology$PreferredName),]
     values$suggestion <- ""
     values$manualSuggestion <- ""
     values$letterList <- c()
   })
   
-# Input Thesaurus (update standardized options) --------------------------------------------------------- 
+# Input terminology (update standardized options) --------------------------------------------------------- 
   observeEvent({
-    input$whichThesaurus
-    input$uploadedThesaurus}, {
+    input$whichTerminology
+    input$uploadedTerminology}, {
     values$letterList <- c()
     values$suggestion <- ""
     for (j in 1:nchar(values$editColumn)) {
-      #replace underscores with spaces before searching for matches in thesaurus
+      #replace underscores with spaces before searching for matches in terminology
       if (substr(values$editColumn, j, j) == '_') {
         values$editColumn = paste0(substr(values$editColumn, 0, j - 1), ' ', substr(values$editColumn, j + 1, nchar(values$editColumn)))
       }
     }
     searchName <- paste0("(?i)(\\||^)(", values$editColumn, ")(\\||$)")
-    preferredName <- values$thesaurus$PreferredName[grepl(searchName, values$thesaurus$Synonyms)]
+    preferredName <- values$terminology$PreferredName[grepl(searchName, values$terminology$Synonyms)]
     if (length(preferredName) == 1 && values$editColumn != preferredName) {
       values$suggestion <- preferredName
     }
     if (!is.null(input$newColumn)) {
-      values$letterList <- values$thesaurus$PreferredName[substr(values$thesaurus$PreferredName, 0, nchar(input$newColumn)) == input$newColumn]
+      values$letterList <- values$terminology$PreferredName[substr(values$terminology$PreferredName, 0, nchar(input$newColumn)) == input$newColumn]
     }
     updateSelectizeInput(session, 'newColumn', label = "Select new column name:", choices = c("", as.character(values$suggestion), as.character(values$letterList)), 
-                         options = list(placeholder = 'Select thesaurus term or start typing...', create = T), selected = input$newColumn, server = T)
-    updateSelectizeInput(session, 'newData', label = "Select thesaurus term:", choices = c("", as.character(values$manualSuggestion), as.character(values$letterList)), 
-                         options = list(placeholder = 'Select thesaurus term or start typing...', create = T), selected = input$newData, server = T)
+                         options = list(placeholder = 'Select terminology term or start typing...', create = T), selected = input$newColumn, server = T)
+    updateSelectizeInput(session, 'newData', label = "Select terminology term:", choices = c("", as.character(values$manualSuggestion), as.character(values$letterList)), 
+                         options = list(placeholder = 'Select terminology term or start typing...', create = T), selected = input$newData, server = T)
   })
 
-# Upload Thesaurus --------------------------------------------------------
-  observeEvent(input$uploadedThesaurus, ignoreInit = T, {
+# Upload terminology --------------------------------------------------------
+  observeEvent(input$uploadedTerminology, ignoreInit = T, {
     output$error <- tryCatch({
-      values$thesaurus <- readInputFile(input$uploadedThesaurus)
+      values$terminology <- readInputFile(input$uploadedTerminology)
       renderText("")
     }, error = function(e) {
       renderText("An error has been detected. Please verify that the file type matches the extension.")
     })
-    if (ncol(values$thesaurus) >= 2) {
-      names(values$thesaurus) <- c("PreferredName", "Synonyms")
-      values$thesaurus <- values$thesaurus[order(values$thesaurus$PreferredName),]
-      output$uploadThesaurusButton <- renderUI({
-        actionButton("thesaurusButton", "Next", style="color: #fff; background-color: #2ca25f; border-color: #2ca25f")
+    if (ncol(values$terminology) >= 2) {
+      names(values$terminology) <- c("PreferredName", "Synonyms")
+      values$terminology <- values$terminology[order(values$terminology$PreferredName),]
+      output$uploadTerminologyButton <- renderUI({
+        actionButton("terminologyButton", "Next", style="color: #fff; background-color: #2ca25f; border-color: #2ca25f")
       })
     }
     else {
-       output$inputUploadedThesaurus <- renderUI({
-         fileInput(inputId = "uploadedThesaurus", label = div("Choose Thesaurus File:", helpButton("Uploaded thesauri must have 2 columns. The first should contain preferred terms. The second should contain synonymns separated by vertical bars (\"|\").")),
+       output$inputUploadedTerminology <- renderUI({
+         fileInput(inputId = "uploadedTerminology", label = div("Choose terminology File:", helpButton("Uploaded Terminologies must have 2 columns. The first should contain preferred terms. The second should contain synonymns separated by vertical bars (\"|\").")),
                    multiple = FALSE, accept = c(".tsv", ".txt", ".csv", ".xls", ".xlsx"), width = NULL, buttonLabel = "Browse...", placeholder = "No file selected")
        })
-      toggleModal(session, 'badThesaurusModal', toggle = "open")
+      toggleModal(session, 'badTerminologyModal', toggle = "open")
     }
   })
 
@@ -565,22 +567,22 @@ server <- function(input, output, session) {
         values$suggestion <- ""
         values$editColumn <- input$editColumn
         for (j in 1:nchar(values$editColumn)) {
-          #replace underscores with spaces before searching for matches in thesaurus
+          #replace underscores with spaces before searching for matches in terminology
           if (substr(values$editColumn, j, j) == '_') {
             values$editColumn <- paste0(substr(values$editColumn, 0, j - 1), ' ', substr(values$editColumn, j + 1, nchar(values$editColumn)))
           }
         }
         searchName <- paste0("(?i)(\\||^)(", values$editColumn, ")(\\||$)")
-        preferredName <- values$thesaurus$PreferredName[grepl(searchName, values$thesaurus$Synonyms)]
+        preferredName <- values$terminology$PreferredName[grepl(searchName, values$terminology$Synonyms)]
         if (length(preferredName) == 1 && values$editColumn != preferredName) {
           values$suggestion <- preferredName
         }
         if (!is.null(input$newColumn)) {
-          values$letterList <- values$thesaurus$PreferredName[substr(values$thesaurus$PreferredName, 0, nchar(input$newColumn)) == input$newColumn]
+          values$letterList <- values$terminology$PreferredName[substr(values$terminology$PreferredName, 0, nchar(input$newColumn)) == input$newColumn]
         }
 
         updateSelectizeInput(session, 'newColumn', label = "Select new column name:", choices = c("", input$newColumn, as.character(values$suggestion), as.character(values$letterList)), 
-                             options = list(placeholder = 'Select thesaurus term or start typing...', create = T), selected = input$newColumn, server = T)
+                             options = list(placeholder = 'Select terminology term or start typing...', create = T), selected = input$newColumn, server = T)
       }
     })
 
@@ -608,16 +610,27 @@ server <- function(input, output, session) {
       writeToScript(paste0("colnames(datasetInput)[which(names(datasetInput) == editColumn)] <- newColumn"))
       values$columns <- names(values$datasetInput)
       updateSelectizeInput(session, 'newColumn', label = "Select new column name:", choices = c("", input$newColumn, as.character(values$suggestion), as.character(values$letterList)), 
-                           options = list(placeholder = 'Select thesaurus term or start typing...', create = T), selected = "", server = T)
+                           options = list(placeholder = 'Select terminology term or start typing...', create = T), selected = "", server = T)
     }
+    showNotification(paste0("Column \"", input$editColumn, "\" has been renamed to \"", input$newColumn, ".\""))
   })
 
+# Render Column -----------------------------------------------------------
+  observeEvent(input$editThisColumn, {
+    if (is.null(input$editThisColumn)) {
+      values$editThisColumn <- names(values$datasetInput)[1]
+    }
+    else {
+      values$editThisColumn <- input$editThisColumn
+    }
+    renderColumn()
+  })
 
-# Automatch ---------------------------------------------------------------
+# Auto-match ---------------------------------------------------------------
   observeEvent(input$automatch, ignoreInit = T, {
     #WRITE TO SCRIPT 
     if (input$editThisColumn != "") {
-      commentify("Automatching")
+      commentify("Auto-matching")
     }
     editThisColumn <- gsub("\"", "\\\\\"", input$editThisColumn)
     writeToScript(paste0("editThisColumn <- \"", editThisColumn, "\""))
@@ -630,9 +643,9 @@ server <- function(input, output, session) {
       writeToScript("automatchTable <- NULL")
       n <- nrow(values$datasetInput)
       #only search for matches of terms that are not already standardized
-      names <- setdiff(values$datasetInput[[input$editThisColumn]][values$start:nrow(values$datasetInput)], values$thesaurus$PreferredName)
+      names <- setdiff(values$datasetInput[[input$editThisColumn]][values$start:nrow(values$datasetInput)], values$terminology$PreferredName)
       m <- length(unique(names))
-      withProgress(message = "Automatching", {
+      withProgress(message = "Auto-matching", {
         for (name in unique(names)) {
           incProgress(1/m, detail = name)
           #Sys.sleep must be included here or else progress bar does not increment properly
@@ -641,13 +654,13 @@ server <- function(input, output, session) {
             next
           }
           for (j in 1:nchar(name)) {
-            #replace underscores with spaces before searching for matches in thesaurus
+            #replace underscores with spaces before searching for matches in terminology
             if (substr(name, j, j) == '_') {
               name = paste0(substr(name, 0, j - 1), ' ', substr(name, j + 1, nchar(name)))
             }
           }
           searchName <- paste0("(?i)(\\||^)(", name, ")(\\||$)")
-          preferredName <- values$thesaurus$PreferredName[grepl(searchName, values$thesaurus$Synonyms)]
+          preferredName <- values$terminology$PreferredName[grepl(searchName, values$terminology$Synonyms)]
           if (length(preferredName) == 1) {
             if (name != preferredName) {
               values$automatchTable <- rbind(values$automatchTable, c(name, as.character(preferredName), TRUE))
@@ -656,7 +669,7 @@ server <- function(input, output, session) {
         }
         #WRITE TO SCRIPT 
         writeToScript("n <- nrow(datasetInput)")
-        writeToScript("names <- setdiff(datasetInput[[editThisColumn]][start:nrow(datasetInput)], thesaurus$PreferredName)")
+        writeToScript("names <- setdiff(datasetInput[[editThisColumn]][start:nrow(datasetInput)], terminology$PreferredName)")
         writeToScript("for (name in unique(names)) {")
         writeToScript("    if (is.na(name)) {")
         writeToScript("        next")
@@ -667,7 +680,7 @@ server <- function(input, output, session) {
         writeToScript("        }")
         writeToScript("    }")
         writeToScript("    searchName <- paste0(\"(?i)(\\\\||^)(\", name, \")(\\\\||$)\")")
-        writeToScript("    preferredName <- thesaurus$PreferredName[which(grepl(searchName, thesaurus$Synonyms))]")
+        writeToScript("    preferredName <- terminology$PreferredName[which(grepl(searchName, terminology$Synonyms))]")
         writeToScript("    if (length(preferredName) == 1) {")
         writeToScript("        if (name != preferredName) {")
         writeToScript("            automatchTable <- rbind(automatchTable, c(name, preferredName, TRUE))")
@@ -692,15 +705,13 @@ server <- function(input, output, session) {
         toggleModal(session, 'automatchModal', toggle = "open")
       }
       else {
-        
         toggleModal(session, 'noMatchModal', toggle = "open")
       }
-      output$viewTable <- renderTable(values$datasetInput)
     }
   })
   
 
-# Automatch Supporting Events ---------------------------------------------
+# Auto-match Supporting Events ---------------------------------------------
   observeEvent(input$selectAll, ignoreInit = T, {
     values$automatchTable <- hot_to_r(input$reviewTable)
     values$automatchTable$Accept = T
@@ -724,7 +735,7 @@ server <- function(input, output, session) {
     })
   })
 
-# Automatch Save ----------------------------------------------------------
+# Auto-match Save ----------------------------------------------------------
   observeEvent(input$automatchSave, ignoreInit = T, {
     if (length(values$automatchTable) > 0) {
       accepted <- hot_to_r(input$reviewTable)
@@ -742,7 +753,7 @@ server <- function(input, output, session) {
     }
     
     #WRITE TO SCRIPT 
-    commentify("Save automatches")
+    commentify("Save auto-matches")
     writeToScript("automatchTable <- as.data.frame(automatchTable)")
     writeToScript("colnames(automatchTable) <- c(\"Current Term\", \"Standardized Term\", \"Accept\")")
     accepted <- hot_to_r(input$reviewTable)
@@ -757,6 +768,7 @@ server <- function(input, output, session) {
     writeToScript("    }")
     writeToScript("}")
     toggleModal(session, 'automatchModal', toggle = "close")
+    renderColumn()
   })
   
   observeEvent(input$automatchClose, ignoreInit = T, {
@@ -770,7 +782,7 @@ server <- function(input, output, session) {
       toggleModal(session, 'matchColumnModal', toggle = "open")
     }
     else {
-      values$unmatched <- setdiff(values$datasetInput[[input$editThisColumn]][values$start:nrow(values$datasetInput)], values$thesaurus$PreferredName)
+      values$unmatched <- setdiff(values$datasetInput[[input$editThisColumn]][values$start:nrow(values$datasetInput)], values$terminology$PreferredName)
       values$unmatched <- setdiff(values$unmatched, NA)
       #WRITE TO SCRIPT 
       commentify("Manual standardization")
@@ -790,19 +802,19 @@ server <- function(input, output, session) {
       values$letterList <- c()
       values$manualSuggestion <- ""
       for (j in 1:nchar(values$firstEditData)) {
-        #replace underscores with spaces before searching for matches in thesaurus
+        #replace underscores with spaces before searching for matches in terminology
         if (substr(values$firstEditData, j, j) == '_') {
           values$firstEditData = paste0(substr(values$firstEditData, 0, j - 1), ' ', substr(values$firstEditData, j + 1, nchar(values$firstEditData)))
         }
       }
       searchName <- paste0("(?i)(\\||^)(", values$firstEditData, ")(\\||$)")
-      preferredName <- values$thesaurus$PreferredName[grepl(searchName, values$thesaurus$Synonyms)]
+      preferredName <- values$terminology$PreferredName[grepl(searchName, values$terminology$Synonyms)]
       if (length(preferredName) == 1 && values$firstEditData != preferredName) {
         values$manualSuggestion <- preferredName
       }
-      values$letterList <- values$thesaurus$PreferredName[substr(values$thesaurus$PreferredName, 0, nchar(input$newData)) == input$newData]
-      updateSelectizeInput(session, 'newData', label = "Select thesaurus term:", choices = c("", input$newData, as.character(values$manualSuggestion), as.character(values$letterList)), 
-                           options = list(placeholder = 'Select thesaurus term or start typing...', create = T), selected = input$newData, server = T)
+      values$letterList <- values$terminology$PreferredName[substr(values$terminology$PreferredName, 0, nchar(input$newData)) == input$newData]
+      updateSelectizeInput(session, 'newData', label = "Select terminology term:", choices = c("", input$newData, as.character(values$manualSuggestion), as.character(values$letterList)), 
+                           options = list(placeholder = 'Select terminology term or start typing...', create = T), selected = input$newData, server = T)
     }
   })
 
@@ -818,6 +830,7 @@ server <- function(input, output, session) {
     else {
       toggleModal(session, 'makeNAModal', toggle = "open")
     }
+    renderColumn()
   })
 
 # Standarize to NA --------------------------------------------------------
@@ -837,8 +850,7 @@ server <- function(input, output, session) {
 
 # Name Output File --------------------------------------------------------
   observeEvent({
-    input$outputFileName 
-    input$extension}, {
+    input$generateOutput}, {
     outputName <- input$outputFileName
     extension <- input$extension
     outputDataFrame <- values$datasetInput
@@ -856,7 +868,6 @@ server <- function(input, output, session) {
 
     #compile output file    
     output$editReport <- downloadHandler(filename = returnList$filename, content = returnList$content)
-    output$editReport2 <- downloadHandler(filename = returnList$filename, content = returnList$content)
     
     #script output
     names(outputText) <- NULL
@@ -864,10 +875,6 @@ server <- function(input, output, session) {
     output$script1 <- downloadHandler(filename = function() {
         paste("good_nomen_R_script", ".txt", sep = "")}, content = function(file) {
         write.table(rbind(outputText, saveUntilEnd), file, row.names = F, col.names = F, quote = F)
-        })
-    output$script2 <- downloadHandler(filename = function() {
-      paste("good_nomen_R_script", ".txt", sep = "")}, content = function(file) {
-      write.table(outputText, file, row.names = F, col.names = F, quote = F)
     })
   })
 }
