@@ -2,23 +2,18 @@
 
 #Load libraries ----------------------------------------------------------
 librariesTxt <<- "#Load Libraries
+library(DT)
+library(RCurl)
+library(rhandsontable)
+library(rjson)
 library(shiny)
-library(readr)
-library(dplyr)
-library(stringr)
-library(readxl)
-library(writexl)
 library(shinyBS)
 library(shinycssloaders)
-library(rhandsontable)
-library(DT)
 library(shinyjs)
-library(RCurl)
-library(rjson)
-library(httr)
+library(shinythemes)
 library(tidyverse)
 library(tools)
-library(shinythemes)"
+library(writexl)"
 
 masterText <- NULL
 eval(parse(text=librariesTxt))
