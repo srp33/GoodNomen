@@ -1,4 +1,4 @@
-![GoodNomen logo](logo.png)
+![GoodNomen logo](www/Logo.png)
 
 ## Introduction
 
