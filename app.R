@@ -27,7 +27,7 @@ libraryText <- NULL
 RDFFile <- NULL
 sURL <- NULL
 readInputFileText <- NULL
-data <- readChar("BioPortalApiKey.txt", nchars = 36) #This gets the apikey from a txt file
+data <- readChar("/keys/BioPortalApiKey.txt", nchars = 36) #This gets the apikey from a txt file
 DAYS_SINCE_DOWNLOAD <- 7
 NUM_SAMPLE_ROWS <- 3 # number of sample rows to send to Bioportal to get recommended ontologies. The larger it is, the slower the code will run
 NUM_REC_ONTO <- 3 #number of recommended ontologies to display to the user
