@@ -1,0 +1,8 @@
+#!/bin/bash
+
+############################################
+# This script has the logic for building a
+# Docker image based on the Dockerfile.
+############################################
+
+docker build -t srp33/goodnomen:v1 .
