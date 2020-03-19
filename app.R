@@ -27,7 +27,9 @@ libraryText <- c("DT", "RCurl", "rhandsontable", "rjson", "shiny", "shinyBS", "s
 RDFFile <- NULL
 sURL <- NULL
 readInputFileText <- NULL
-data <- readChar("/keys/BioPortalApiKey.txt", nchars = 36) #This gets the apikey from a txt file
+#data <- readChar("/keys/BioPortalApiKey.txt", nchars = 36) #This gets the apikey from a txt file
+#data <- "52d855bf-c24f-4f1e-add2-573bdc8c5cd1"
+data <- readChar("apiKey.txt", nchars = 36)
 DAYS_SINCE_DOWNLOAD <- 7
 NUM_SAMPLE_ROWS <- 3 # number of sample rows to send to Bioportal to get recommended ontologies. The larger it is, the slower the code will run
 NUM_REC_ONTO <- 3 #number of recommended ontologies to display to the user
@@ -486,6 +488,11 @@ server <- function(input, output, session) {
                                   Thank you for your patience."),
                                 withSpinner(" ", type = SPINNER_TYPE, proxy.height = "150px"), footer = NULL, easyClose = F))
           
+          # Check to make sure OntologyList exists
+          if(!file.exists("OntologyList.txt")){
+            file.create("OntologyList.txt")
+            Sys.setFileTime("OntologyList.txt", "2018-12-04")
+          }
           # Get the last date modified from a file and see if it's been 7 days
           lastRunDate <- file.mtime("OntologyList.txt")
           dateToday <- Sys.Date()
@@ -664,7 +671,7 @@ server <- function(input, output, session) {
         }, TimeoutException = function(ex) {
           timeOutError()
         })
-        
+ 
         #format column names to retrieve a list of preferred names stored in the ontology
         colnames(myFile) <- sub("_", " ", colnames(myFile))
         colnames(myFile) <- tolower(colnames(myFile))
