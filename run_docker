@@ -22,4 +22,5 @@
 ## Hit Ctrl-C when you want to close the container.
 docker run --rm -i -t --name goodnomen -p 8080:3838 \
     -v $(pwd):/keys \
+    -v /tmp:/tmp \
     srp33/goodnomen:v1

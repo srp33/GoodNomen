@@ -35,7 +35,9 @@ NUM_REC_MANUAL <- 5 #num of manual term recommendation to display to the user
 MAX_HEADERS <- 5 #Make number of header rows uploaded data can have
 NUM_TEST_TIMES <-2 #If the URL doesn't work, test it again this many times.
 SPINNER_TYPE <- 8 #any number between 1 and 8. 8 is the circle spinner. (To see the different spinner options, go to https://projects.lukehaas.me/css-loaders/)
+#TIMEOUT_TIME <- 5 # 5 minutes = 300 seconds
 TIMEOUT_TIME <- 120 # 5 minutes = 300 seconds
+ONTOLOGY_LIST_FILE_PATH <- "/tmp/OntologyList.txt"
 
 
 initializeScript <- function() {
@@ -71,8 +73,8 @@ collapse_text <- function(my_list) {
 getRecommendedTerms <- function(dataSet) {  # Get a list of terms to standardize
   sampleRows  <- sample_n(dataSet, min(NUM_SAMPLE_ROWS, nrow(dataSet)))
   rowChar <- toString(unlist(unique(unlist(sampleRows, use.names = FALSE)))) #Change sample table to one string
-  rowChar <- URLencode(rowChar, reserved = TRUE) #Why encode? Characters in a URL other than the English alphanumeric characters and - _ . ~ should be encoded as % plus a two-digit hexadecimal representation, and any single-byte character can be so encoded. The standard refers to this as 'percent-encoding'.
-  rURL <<- sprintf("http://data.bioontology.org/recommender?input={%s&apikey=%s&display_links=false&display_context=false", rowChar, API_KEY)
+  rowChar <- URLencode(paste0("{", rowChar, "}"), reserved = TRUE) #Why encode? Characters in a URL other than the English alphanumeric characters and - _ . ~ should be encoded as % plus a two-digit hexadecimal representation, and any single-byte character can be so encoded. The standard refers to this as 'percent-encoding'.
+  rURL <<- sprintf("http://data.bioontology.org/recommender?input=%s&apikey=%s&display_links=false&display_context=false", rowChar, API_KEY)
   
   # I had the error foudn here (https://stackoverflow.com/questions/49173967/trouble-using-jsonlites-fromjson-with-url-in-r) when I didn't include next three lines of code. Ignore the warning they generate
   res <- readLines(rURL)
@@ -291,7 +293,7 @@ server <- function(input, output, session) {
   })
   
   lockedOntologyError <- function(){
-    listOfOntNames <- readLines("OntologyList.txt")
+    listOfOntNames <- readLines(ONTOLOGY_LIST_FILE_PATH)
     listOfOntNames <- listOfOntNames[!(listOfOntNames %in% values$ontName)]
     values$RecommendedOntologies <<- values$RecommendedOntologies[!(values$RecommendedOntologies %in% values$ontName)]
     title <- "Error! Ontology locked for download!!"
@@ -488,12 +490,13 @@ server <- function(input, output, session) {
                                 withSpinner(" ", type = SPINNER_TYPE, proxy.height = "150px"), footer = NULL, easyClose = F))
           
           # Check to make sure OntologyList exists
-          if(!file.exists("OntologyList.txt")){
-            file.create("OntologyList.txt")
-            Sys.setFileTime("OntologyList.txt", "2018-12-04")
+          if(!file.exists(ONTOLOGY_LIST_FILE_PATH)){
+            file.create(ONTOLOGY_LIST_FILE_PATH)
+            # Set an arbitrarily old date as the default
+            Sys.setFileTime(ONTOLOGY_LIST_FILE_PATH, "2020-01-01")
           }
           # Get the last date modified from a file and see if it's been 7 days
-          lastRunDate <- file.mtime("OntologyList.txt")
+          lastRunDate <- file.mtime(ONTOLOGY_LIST_FILE_PATH)
           dateToday <- Sys.Date()
           dateDif <- as.Date(strptime(dateToday, "%Y-%m-%d"))-as.Date(strptime(lastRunDate,"%Y-%m-%d"))
           diffNum <- as.numeric(dateDif)
@@ -521,11 +524,11 @@ server <- function(input, output, session) {
             ContentDataFrame <<- data.frame(t(sapply(myContent,c)))
             ContentDataFrame$nameAndAcronymn = paste(ContentDataFrame$acronym, ContentDataFrame$name) #Makes a column with both acronym and name
             listOfOntNames <<- ContentDataFrame[, ncol(ContentDataFrame)] # This accesses the last column of the dateframe
-            write.table(listOfOntNames, file = "OntologyList.txt", append= FALSE, quote = FALSE,
+            write.table(listOfOntNames, file = ONTOLOGY_LIST_FILE_PATH, append= FALSE, quote = FALSE,
                         row.names = FALSE, col.names = FALSE)
           }
           else{
-            listOfOntNames <- readLines("OntologyList.txt")
+            listOfOntNames <- readLines(ONTOLOGY_LIST_FILE_PATH)
             listOfOntNames <<- lapply(listOfOntNames, noquote)
           }
           
@@ -642,7 +645,7 @@ server <- function(input, output, session) {
                           easyClose = F))
     
     # Get the last date modified from a file and see if it's been 7 days
-    fileName <- paste0(values$OntologyAcronym, "_Ontology.txt")
+    fileName <- paste0("/tmp/", values$OntologyAcronym, "_Ontology.txt")
     if (file.exists(fileName)){
       lastRunDate <- file.mtime(fileName)
       dateToday <- Sys.Date()
@@ -664,8 +667,8 @@ server <- function(input, output, session) {
       }else{
         tryCatch({
           res <- R.utils::withTimeout(  {
-            myFile <- download.file(downloadURL, "Ontology.csv.gz", quiet = FALSE, mode = "wb")
-            myFile <- read_csv("Ontology.csv.gz") ## TODO This was throwing an error and not reading 7 days after the file had been downloaded. Sometimes it works and sometimes it doesn't
+            myFile <- download.file(downloadURL, "/tmp/Ontology.csv.gz", quiet = FALSE, mode = "wb")
+            myFile <- read_csv("/tmp/Ontology.csv.gz") ## TODO This was throwing an error and not reading 7 days after the file had been downloaded. Sometimes it works and sometimes it doesn't
           },  timeout = TIMEOUT_TIME)
         }, TimeoutException = function(ex) {
           timeOutError()
