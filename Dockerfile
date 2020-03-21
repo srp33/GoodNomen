@@ -1,9 +1,24 @@
 FROM rocker/shiny-verse:3.6.1
 
-# Prepare the Shiny server and install necessary R packages.
-RUN rm -rf /srv/shiny-server/* \
- && mkdir /srv/shiny-server/GoodNomen \
- && R -e "install.packages(c('DT', 'RCurl', 'rhandsontable', 'rjson', 'RJSONIO', 'R.utils', 'shinyBS', 'shinycssloaders', 'shinyjs', 'tools', 'writexl'), repos='https://cloud.r-project.org')"
+# Install necessary R packages and prepare Shiny server dir.
+RUN apt-get update -qq \
+  && apt-get -y --no-install-recommends install \
+    lbzip2 \
+    libv8-dev \
+  && install2.r --error --deps TRUE \
+    DT \
+    RCurl \
+    rhandsontable \
+    rjson \
+    RJSONIO \
+    R.utils \
+    shinyBS \
+    shinycssloaders \
+    shinyjs \
+    shinyWidgets \
+    writexl \
+  && rm -rf /srv/shiny-server/* \
+  && mkdir /srv/shiny-server/GoodNomen
 
 COPY ./app.R /srv/shiny-server/GoodNomen/
 COPY ./www/ /srv/shiny-server/GoodNomen/www/

@@ -35,10 +35,8 @@ NUM_REC_MANUAL <- 5 #num of manual term recommendation to display to the user
 MAX_HEADERS <- 5 #Make number of header rows uploaded data can have
 NUM_TEST_TIMES <-2 #If the URL doesn't work, test it again this many times.
 SPINNER_TYPE <- 8 #any number between 1 and 8. 8 is the circle spinner. (To see the different spinner options, go to https://projects.lukehaas.me/css-loaders/)
-#TIMEOUT_TIME <- 5 # 5 minutes = 300 seconds
-TIMEOUT_TIME <- 120 # 5 minutes = 300 seconds
+TIMEOUT_TIME <- 120 # seconds
 ONTOLOGY_LIST_FILE_PATH <- "/tmp/OntologyList.txt"
-
 
 initializeScript <- function() {
   libraryText <<- c("dplyr", "stringr", "readxl", "writexl", "shinyBS", "shinycssloaders", "rhandsontable", "shinyjs", "RCurl", "rjson", "httr", "tidyverse")
@@ -73,7 +71,7 @@ collapse_text <- function(my_list) {
 getRecommendedTerms <- function(dataSet) {  # Get a list of terms to standardize
   sampleRows  <- sample_n(dataSet, min(NUM_SAMPLE_ROWS, nrow(dataSet)))
   rowChar <- toString(unlist(unique(unlist(sampleRows, use.names = FALSE)))) #Change sample table to one string
-  rowChar <- URLencode(paste0("{", rowChar, "}"), reserved = TRUE) #Why encode? Characters in a URL other than the English alphanumeric characters and - _ . ~ should be encoded as % plus a two-digit hexadecimal representation, and any single-byte character can be so encoded. The standard refers to this as 'percent-encoding'.
+  rowChar <- URLencode(rowChar, reserved = TRUE) #Why encode? Characters in a URL other than the English alphanumeric characters and - _ . ~ should be encoded as % plus a two-digit hexadecimal representation, and any single-byte character can be so encoded. The standard refers to this as 'percent-encoding'.
   rURL <<- sprintf("http://data.bioontology.org/recommender?input=%s&apikey=%s&display_links=false&display_context=false", rowChar, API_KEY)
   
   # I had the error foudn here (https://stackoverflow.com/questions/49173967/trouble-using-jsonlites-fromjson-with-url-in-r) when I didn't include next three lines of code. Ignore the warning they generate
@@ -533,6 +531,7 @@ server <- function(input, output, session) {
           }
           
           # Make a tibble, so later on when you have the three recommended ontology acronyms, you can filter to find their full names. 
+          print("got here1")
           ontologyTibble <- as_tibble(listOfOntNames)
           ontologyTibble <- separate(ontologyTibble, value, into =  c("Acronym", "FullName"), sep="\\s", extra = "merge")
           
@@ -562,8 +561,10 @@ server <- function(input, output, session) {
             }, TimeoutException = function(ex) {
               timeOutError()
             })
+          print("got here2")
             recTibble <- as_tibble(Recommenderdf)
             if(ncol(recTibble) > 1){
+          print("got here3")
               recTibble <- as_tibble(Recommenderdf)
               recTibble <- recTibble %>% 
                 select(ontologies) %>% 
