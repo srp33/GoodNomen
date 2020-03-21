@@ -21,9 +21,13 @@ eval(parse(text=librariesTxt))
 options(shiny.maxRequestSize=50*1024^2, htmlwidgets.TOJSON_ARGS = list(na = 'string'))
 
 # Global path variables
-TEMP_DIR_PATH <- "/tmp"
-API_KEY_FILE_PATH <- paste0(TEMP_DIR_PATH, "/BioPortalApiKey.txt")
-ONTOLOGY_LIST_FILE_PATH <- paste0(TEMP_DIR_PATH, "/OntologyList.txt")
+TEMP_DIR_PATH <- "/tmp/"
+# This will be true if the app is executed outside Docker.
+if (!dir.exists("/etc/os-release"))
+    TEMP_DIR_PATH <- ""
+
+API_KEY_FILE_PATH <- paste0(TEMP_DIR_PATH, "BioPortalApiKey.txt")
+ONTOLOGY_LIST_FILE_PATH <- paste0(TEMP_DIR_PATH, "OntologyList.txt")
 
 # Global functions and Definitions --------------------------------------------------------
 
@@ -535,7 +539,6 @@ server <- function(input, output, session) {
           }
           
           # Make a tibble, so later on when you have the three recommended ontology acronyms, you can filter to find their full names. 
-          print("got here1")
           ontologyTibble <- as_tibble(listOfOntNames)
           ontologyTibble <- separate(ontologyTibble, value, into =  c("Acronym", "FullName"), sep="\\s", extra = "merge")
           
@@ -565,10 +568,9 @@ server <- function(input, output, session) {
             }, TimeoutException = function(ex) {
               timeOutError()
             })
-          print("got here2")
+
             recTibble <- as_tibble(Recommenderdf)
             if(ncol(recTibble) > 1){
-          print("got here3")
               recTibble <- as_tibble(Recommenderdf)
               recTibble <- recTibble %>% 
                 select(ontologies) %>% 
@@ -650,7 +652,7 @@ server <- function(input, output, session) {
                           easyClose = F))
     
     # Get the last date modified from a file and see if it's been 7 days
-    fileName <- paste0(TEMP_DIR_PATH, "/", values$OntologyAcronym, "_Ontology.txt")
+    fileName <- paste0(TEMP_DIR_PATH, values$OntologyAcronym, "_Ontology.txt")
     if (file.exists(fileName)){
       lastRunDate <- file.mtime(fileName)
       dateToday <- Sys.Date()
