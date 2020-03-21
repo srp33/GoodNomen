@@ -20,6 +20,11 @@ eval(parse(text=librariesTxt))
 #set file upload limit to 50 MB
 options(shiny.maxRequestSize=50*1024^2, htmlwidgets.TOJSON_ARGS = list(na = 'string'))
 
+# Global path variables
+TEMP_DIR_PATH <- "/tmp"
+API_KEY_FILE_PATH <- paste0(TEMP_DIR_PATH, "/BioPortalApiKey.txt")
+ONTOLOGY_LIST_FILE_PATH <- paste0(TEMP_DIR_PATH, "/OntologyList.txt"
+
 # Global functions and Definitions --------------------------------------------------------
 
 libraryText <- c("DT", "RCurl", "rhandsontable", "rjson", "shiny", "shinyBS", "shinycssloaders", "shinyjs",
@@ -27,7 +32,7 @@ libraryText <- c("DT", "RCurl", "rhandsontable", "rjson", "shiny", "shinyBS", "s
 RDFFile <- NULL
 sURL <- NULL
 readInputFileText <- NULL
-API_KEY <- readChar("/keys/BioPortalApiKey.txt", nchars = 36) #This gets the apikey from a txt file
+API_KEY <- readChar(API_KEY_FILE_PATH, nchars = 36) #This gets the apikey from a txt file
 DAYS_SINCE_DOWNLOAD <- 7
 NUM_SAMPLE_ROWS <- 3 # number of sample rows to send to Bioportal to get recommended ontologies. The larger it is, the slower the code will run
 NUM_REC_ONTO <- 3 #number of recommended ontologies to display to the user
@@ -36,7 +41,6 @@ MAX_HEADERS <- 5 #Make number of header rows uploaded data can have
 NUM_TEST_TIMES <-2 #If the URL doesn't work, test it again this many times.
 SPINNER_TYPE <- 8 #any number between 1 and 8. 8 is the circle spinner. (To see the different spinner options, go to https://projects.lukehaas.me/css-loaders/)
 TIMEOUT_TIME <- 120 # seconds
-ONTOLOGY_LIST_FILE_PATH <- "/tmp/OntologyList.txt"
 
 initializeScript <- function() {
   libraryText <<- c("dplyr", "stringr", "readxl", "writexl", "shinyBS", "shinycssloaders", "rhandsontable", "shinyjs", "RCurl", "rjson", "httr", "tidyverse")
@@ -646,7 +650,7 @@ server <- function(input, output, session) {
                           easyClose = F))
     
     # Get the last date modified from a file and see if it's been 7 days
-    fileName <- paste0("/tmp/", values$OntologyAcronym, "_Ontology.txt")
+    fileName <- paste0(TEMP_DIR_PATH, "/", values$OntologyAcronym, "_Ontology.txt")
     if (file.exists(fileName)){
       lastRunDate <- file.mtime(fileName)
       dateToday <- Sys.Date()
@@ -668,8 +672,10 @@ server <- function(input, output, session) {
       }else{
         tryCatch({
           res <- R.utils::withTimeout(  {
-            myFile <- download.file(downloadURL, "/tmp/Ontology.csv.gz", quiet = FALSE, mode = "wb")
-            myFile <- read_csv("/tmp/Ontology.csv.gz") ## TODO This was throwing an error and not reading 7 days after the file had been downloaded. Sometimes it works and sometimes it doesn't
+            tmpFilePath <- paste0(tempfile(), ".csv.gz")
+            myFile <- download.file(downloadURL, tmpFilePath, quiet = FALSE, mode = "wb")
+            myFile <- read_csv(tmpFilePath)
+            unlink(tmpFilePath)
           },  timeout = TIMEOUT_TIME)
         }, TimeoutException = function(ex) {
           timeOutError()
