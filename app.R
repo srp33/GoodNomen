@@ -17,13 +17,13 @@ library(writexl)"
 masterText <- NULL
 eval(parse(text=librariesTxt))
 
-#set file upload limit to 50 MB
+# Set file upload limit to 50 MB
 options(shiny.maxRequestSize=50*1024^2, htmlwidgets.TOJSON_ARGS = list(na = 'string'))
 
 # Global path variables
 TEMP_DIR_PATH <- "/tmp"
 API_KEY_FILE_PATH <- paste0(TEMP_DIR_PATH, "/BioPortalApiKey.txt")
-ONTOLOGY_LIST_FILE_PATH <- paste0(TEMP_DIR_PATH, "/OntologyList.txt"
+ONTOLOGY_LIST_FILE_PATH <- paste0(TEMP_DIR_PATH, "/OntologyList.txt")
 
 # Global functions and Definitions --------------------------------------------------------
 
