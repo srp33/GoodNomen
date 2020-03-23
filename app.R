@@ -31,8 +31,6 @@ ONTOLOGY_LIST_FILE_PATH <- paste0(TEMP_DIR_PATH, "OntologyList.txt")
 
 # Global functions and Definitions --------------------------------------------------------
 
-#listOfLibrariesUsed <- c("DT", "RCurl", "rhandsontable", "rjson", "shiny", "shinyBS", "shinycssloaders", "shinyjs",
-#               "tidyverse", "tools", "writexl")
 RDFFile <- NULL
 sURL <- NULL
 readInputFileText <- NULL
