@@ -31,8 +31,8 @@ ONTOLOGY_LIST_FILE_PATH <- paste0(TEMP_DIR_PATH, "OntologyList.txt")
 
 # Global functions and Definitions --------------------------------------------------------
 
-listOfLibrariesUsed <- c("DT", "RCurl", "rhandsontable", "rjson", "shiny", "shinyBS", "shinycssloaders", "shinyjs",
-                 "tidyverse", "tools", "writexl")
+#listOfLibrariesUsed <- c("DT", "RCurl", "rhandsontable", "rjson", "shiny", "shinyBS", "shinycssloaders", "shinyjs",
+#               "tidyverse", "tools", "writexl")
 RDFFile <- NULL
 sURL <- NULL
 readInputFileText <- NULL
@@ -47,7 +47,8 @@ SPINNER_TYPE <- 8 #any number between 1 and 8. 8 is the circle spinner. (To see 
 TIMEOUT_TIME <- 120 # seconds
 
 initializeScript <- function() {
-  listOfLibrariesUsed <<- c("dplyr", "stringr", "readxl", "writexl", "shinyBS", "shinycssloaders", "rhandsontable", "shinyjs", "RCurl", "rjson", "httr", "tidyverse")
+  listOfLibrariesUsed <<- c("DT", "RCurl", "rhandsontable", "rjson", "shiny", "shinyBS", "shinycssloaders", "shinyjs",
+                            "tidyverse", "tools", "writexl")
 }
 
 initializeScript()
