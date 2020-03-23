@@ -1,7 +1,7 @@
 ## Good Nomen Shiny App (Version 2.0)
 
 #Load libraries ----------------------------------------------------------
-librariesTxt <<- "#Load Libraries
+loadLibraries <<- "#Load Libraries
 library(DT)
 library(RCurl)
 library(rhandsontable)
@@ -15,7 +15,7 @@ library(tools)
 library(writexl)"
 
 masterText <- NULL
-eval(parse(text=librariesTxt))
+eval(parse(text=loadLibraries))
 
 # Set file upload limit to 50 MB
 options(shiny.maxRequestSize=50*1024^2, htmlwidgets.TOJSON_ARGS = list(na = 'string'))
@@ -31,7 +31,7 @@ ONTOLOGY_LIST_FILE_PATH <- paste0(TEMP_DIR_PATH, "OntologyList.txt")
 
 # Global functions and Definitions --------------------------------------------------------
 
-libraryText <- c("DT", "RCurl", "rhandsontable", "rjson", "shiny", "shinyBS", "shinycssloaders", "shinyjs",
+listOfLibrariesUsed <- c("DT", "RCurl", "rhandsontable", "rjson", "shiny", "shinyBS", "shinycssloaders", "shinyjs",
                  "tidyverse", "tools", "writexl")
 RDFFile <- NULL
 sURL <- NULL
@@ -47,7 +47,7 @@ SPINNER_TYPE <- 8 #any number between 1 and 8. 8 is the circle spinner. (To see 
 TIMEOUT_TIME <- 120 # seconds
 
 initializeScript <- function() {
-  libraryText <<- c("dplyr", "stringr", "readxl", "writexl", "shinyBS", "shinycssloaders", "rhandsontable", "shinyjs", "RCurl", "rjson", "httr", "tidyverse")
+  listOfLibrariesUsed <<- c("dplyr", "stringr", "readxl", "writexl", "shinyBS", "shinycssloaders", "rhandsontable", "shinyjs", "RCurl", "rjson", "httr", "tidyverse")
 }
 
 initializeScript()
@@ -359,10 +359,10 @@ server <- function(input, output, session) {
   readInputFile <- function(inFile) {
     fileExt <- paste0(".", file_ext(gsub("\\\\", "/", inFile$datapath)))
     text <- paste0("# Please ensure that your terminology file (", inFile[1],") is in the same directory as this script before executing. Please also make sure that your R console is in the correct working terminal (use setwd() to change to the directory that your files are in).")
-    installPackages <- addLibrary(libraryText)
+    installPackages <- addLibrary(listOfLibrariesUsed)
     readInputFileText <<- paste0("datasetInput <- read_", extensionsMap[[fileExt]], "('", inFile$name, "', col_names=FALSE)")
     masterText <<- NULL
-    masterText <<- paste0(masterText,  installPackages, "\n\n", librariesTxt, "\n\n", text) 
+    masterText <<- paste0(masterText,  installPackages, "\n\n", loadLibraries, "\n\n", text) 
     do.call(paste0("read_", extensionsMap[[fileExt]]), list(inFile$datapath, "col_names" = FALSE))
   }
   
@@ -1380,10 +1380,9 @@ server <- function(input, output, session) {
       fullFileName <- paste0(fileName, ".R")
       
       to_write <- if (grepl("xls", this_extension)) {
-        libraryText <<- c(libraryText, "writexl")
         "xlsx"
       } else {
-        libraryText <<- libraryText[!str_detect(libraryText, "writexl")]
+        listOfLibrariesUsed <<- listOfLibrariesUsed[!str_detect(listOfLibrariesUsed, "writexl")]
         extensionsMap[[this_extension]]
       }
       masterText <<- paste0(masterText, "\n", "\n# Save File\n",
