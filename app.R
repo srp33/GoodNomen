@@ -1,5 +1,3 @@
-## Good Nomen Shiny App (Version 2.0)
-
 #Load libraries ----------------------------------------------------------
 loadLibraries <<- "#Load Libraries
 library(DT)
