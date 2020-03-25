@@ -42,7 +42,6 @@ MAX_HEADERS <- 5 #Make number of header rows uploaded data can have
 NUM_TEST_TIMES <-2 #If the URL doesn't work, test it again this many times.
 SPINNER_TYPE <- 8 #any number between 1 and 8. 8 is the circle spinner. (To see the different spinner options, go to https://projects.lukehaas.me/css-loaders/)
 TIMEOUT_TIME <- 120 # seconds
-GREEN_BUTTON_STYLE <- "color: #fff; background-color: #2ca25f; border-color: #2ca25f"
 
 initializeScript <- function() {
   listOfLibrariesUsed <<- c("DT", "RCurl", "rhandsontable", "rjson", "shiny", "shinyBS", "shinycssloaders", "shinyjs",
@@ -612,7 +611,8 @@ server <- function(input, output, session) {
     values$ontName <<- input$ontologySelector
     if(input$ontologySelector != "" && !is.null(input$ontologySelector)) {
       #actionButton("nextbutton", "Next", style = "color: #fff; background-color: #2ca25f; border-color: #2ca25f")
-      actionButton("buttonLoadThenNext", "Next", style = GREEN_BUTTON_STYLE)
+      #actionButton("buttonLoadThenNext", "Next", class = "next_button")
+      actionButton("buttonLoadThenNext", "Next", style = "color: #fff; background-color: #2ca25f; border-color: #2ca25f")
     }
   }) 
   
