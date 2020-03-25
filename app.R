@@ -18,11 +18,12 @@ eval(parse(text=loadLibraries))
 # Set file upload limit to 50 MB
 options(shiny.maxRequestSize=50*1024^2, htmlwidgets.TOJSON_ARGS = list(na = 'string'))
 
-# Global path variables
-TEMP_DIR_PATH <- "/tmp/"
-# This will be true if the app is executed outside Docker.
-if (!dir.exists("/etc/os-release"))
-    TEMP_DIR_PATH <- ""
+# Global path variables -----------------------------------------------------------------
+
+TEMP_DIR_PATH <- ""
+# This will be true if the app is executed inside a Docker container.
+if (dir.exists("/home/shiny"))
+    TEMP_DIR_PATH <- "/tmp/"
 
 API_KEY_FILE_PATH <- paste0(TEMP_DIR_PATH, "BioPortalApiKey.txt")
 ONTOLOGY_LIST_FILE_PATH <- paste0(TEMP_DIR_PATH, "OntologyList.txt")
@@ -41,6 +42,7 @@ MAX_HEADERS <- 5 #Make number of header rows uploaded data can have
 NUM_TEST_TIMES <-2 #If the URL doesn't work, test it again this many times.
 SPINNER_TYPE <- 8 #any number between 1 and 8. 8 is the circle spinner. (To see the different spinner options, go to https://projects.lukehaas.me/css-loaders/)
 TIMEOUT_TIME <- 120 # seconds
+GREEN_BUTTON_STYLE <- "color: #fff; background-color: #2ca25f; border-color: #2ca25f"
 
 initializeScript <- function() {
   listOfLibrariesUsed <<- c("DT", "RCurl", "rhandsontable", "rjson", "shiny", "shinyBS", "shinycssloaders", "shinyjs",
@@ -609,8 +611,8 @@ server <- function(input, output, session) {
   output$page1Next <- renderUI({
     values$ontName <<- input$ontologySelector
     if(input$ontologySelector != "" && !is.null(input$ontologySelector)) {
-      actionButton("nextbutton", "Next", style = "color: #fff; background-color: #2ca25f; border-color: #2ca25f")
-      actionButton("buttonLoadThenNext", "Next", style = "color: #fff; background-color: #2ca25f; border-color: #2ca25f")
+      #actionButton("nextbutton", "Next", style = "color: #fff; background-color: #2ca25f; border-color: #2ca25f")
+      actionButton("buttonLoadThenNext", "Next", style = GREEN_BUTTON_STYLE)
     }
   }) 
   
