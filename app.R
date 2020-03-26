@@ -481,6 +481,7 @@ server <- function(input, output, session) {
   
   # ** BioPortal Access (Download Ontologies)
   output$ontologySelector <- renderUI ({
+
     if(!is.null(input$file1)) {
       ## List of Ontology Names Recommender   
       # Pop up window informs the user that accessing info from BioPortal will take awhile
@@ -537,7 +538,7 @@ server <- function(input, output, session) {
           }
           
           # Make a tibble, so later on when you have the three recommended ontology acronyms, you can filter to find their full names. 
-          ontologyTibble <- as_tibble(listOfOntNames)
+          ontologyTibble <- tibble(value = listOfOntNames)
           ontologyTibble <- separate(ontologyTibble, value, into =  c("Acronym", "FullName"), sep="\\s", extra = "merge")
           
           #Access recommended ontologies through Bioportal
@@ -675,7 +676,7 @@ server <- function(input, output, session) {
           res <- R.utils::withTimeout(  {
             tmpFilePath <- paste0(tempfile(), ".csv.gz")
             myFile <- download.file(downloadURL, tmpFilePath, quiet = FALSE, mode = "wb")
-            myFile <- read_csv(tmpFilePath)
+            myFile <- suppressMessages(suppressWarnings(read_csv(tmpFilePath)))
             unlink(tmpFilePath)
           },  timeout = TIMEOUT_TIME)
         }, TimeoutException = function(ex) {
