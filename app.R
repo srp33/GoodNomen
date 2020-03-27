@@ -1,5 +1,3 @@
-## Good Nomen Shiny App (Version 2.0)
-
 #Load libraries ----------------------------------------------------------
 loadLibraries <<- "#Load Libraries
 library(DT)
@@ -20,11 +18,12 @@ eval(parse(text=loadLibraries))
 # Set file upload limit to 50 MB
 options(shiny.maxRequestSize=50*1024^2, htmlwidgets.TOJSON_ARGS = list(na = 'string'))
 
-# Global path variables
-TEMP_DIR_PATH <- "/tmp/"
-# This will be true if the app is executed outside Docker.
-if (!dir.exists("/etc/os-release"))
-    TEMP_DIR_PATH <- ""
+# Global path variables -----------------------------------------------------------------
+
+TEMP_DIR_PATH <- ""
+# This will be true if the app is executed inside a Docker container.
+if (dir.exists("/home/shiny"))
+    TEMP_DIR_PATH <- "/tmp/"
 
 API_KEY_FILE_PATH <- paste0(TEMP_DIR_PATH, "BioPortalApiKey.txt")
 ONTOLOGY_LIST_FILE_PATH <- paste0(TEMP_DIR_PATH, "OntologyList.txt")
@@ -482,6 +481,7 @@ server <- function(input, output, session) {
   
   # ** BioPortal Access (Download Ontologies)
   output$ontologySelector <- renderUI ({
+
     if(!is.null(input$file1)) {
       ## List of Ontology Names Recommender   
       # Pop up window informs the user that accessing info from BioPortal will take awhile
@@ -538,7 +538,7 @@ server <- function(input, output, session) {
           }
           
           # Make a tibble, so later on when you have the three recommended ontology acronyms, you can filter to find their full names. 
-          ontologyTibble <- as_tibble(listOfOntNames)
+          ontologyTibble <- tibble(value = listOfOntNames)
           ontologyTibble <- separate(ontologyTibble, value, into =  c("Acronym", "FullName"), sep="\\s", extra = "merge")
           
           #Access recommended ontologies through Bioportal
@@ -611,7 +611,8 @@ server <- function(input, output, session) {
   output$page1Next <- renderUI({
     values$ontName <<- input$ontologySelector
     if(input$ontologySelector != "" && !is.null(input$ontologySelector)) {
-      actionButton("nextbutton", "Next", style = "color: #fff; background-color: #2ca25f; border-color: #2ca25f")
+      #actionButton("nextbutton", "Next", style = "color: #fff; background-color: #2ca25f; border-color: #2ca25f")
+      #actionButton("buttonLoadThenNext", "Next", class = "next_button")
       actionButton("buttonLoadThenNext", "Next", style = "color: #fff; background-color: #2ca25f; border-color: #2ca25f")
     }
   }) 
@@ -675,7 +676,7 @@ server <- function(input, output, session) {
           res <- R.utils::withTimeout(  {
             tmpFilePath <- paste0(tempfile(), ".csv.gz")
             myFile <- download.file(downloadURL, tmpFilePath, quiet = FALSE, mode = "wb")
-            myFile <- read_csv(tmpFilePath)
+            myFile <- suppressMessages(suppressWarnings(read_csv(tmpFilePath)))
             unlink(tmpFilePath)
           },  timeout = TIMEOUT_TIME)
         }, TimeoutException = function(ex) {
