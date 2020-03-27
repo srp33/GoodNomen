@@ -31,8 +31,6 @@ ONTOLOGY_LIST_FILE_PATH <- paste0(TEMP_DIR_PATH, "OntologyList.txt")
 
 # Global functions and Definitions --------------------------------------------------------
 
-#listOfLibrariesUsed <- c("DT", "RCurl", "rhandsontable", "rjson", "shiny", "shinyBS", "shinycssloaders", "shinyjs",
-#               "tidyverse", "tools", "writexl")
 RDFFile <- NULL
 sURL <- NULL
 readInputFileText <- NULL
@@ -158,8 +156,8 @@ ui <- fluidPage(
                                                     )),
                                    uiOutput("resetAndSave"), hr(),
                                    div(
-                                     actionButton('editBack', "Back", class = "back_button"),
-                                     actionButton('editNext', "Next", class = "next_button"))
+                                     actionButton('editBack', "Back", css.class = "back_button"),
+                                     actionButton('editNext', "Next", css.class = "next_button"))
                       ),
                       mainPanel(
                         tags$em(textOutput("editDataPreviewText")),
@@ -813,13 +811,19 @@ server <- function(input, output, session) {
             }
             
             # If the term is already in the data frame, don't add it (must come after the code above) Maybe later, let the user pick which term they would rather pick
-            if(myListofCurrentNames %in% myDF[,1]){
+            if(myListofCurrentNames[1] %in% myDF[,1]){
               next;
             }
             
+            if(StandardName == "" || is.na(StandardName)){
+              next;
+            } 
+            
             if (length(myListofCurrentNames) > 1){
               lapply(myListofCurrentNames, function(x) {
-                myDF <<- rbind(myDF, list(x, StandardName, "TRUE"))
+                if(!is.na(x)){
+                  myDF <<- rbind(myDF, list(x, StandardName, "TRUE"))
+                }
               })
             }
             else{
@@ -1006,7 +1010,7 @@ server <- function(input, output, session) {
         modalDialog(
           content,
           title = title,
-          footer = NULL,
+          footer = tagList(modalButton("Cancel")),
           size = "l",
           easyClose = TRUE)
       )
