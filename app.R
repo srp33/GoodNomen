@@ -663,7 +663,6 @@ server <- function(input, output, session) {
       diffNum <- 9
     }
     
-    diffNum  = 3 # DELETE THIS MONDAY!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     # If more than 7 days, download full ontology list from BioPortal. Else, read file
     if (diffNum > DAYS_SINCE_DOWNLOAD){
       
@@ -822,7 +821,7 @@ server <- function(input, output, session) {
             } 
             
             if (length(myListofCurrentNames) > 1){
-              sapply(myListofCurrentNames, function(x) {
+              lapply(myListofCurrentNames, function(x) {
                 if(!is.na(x)){
                   if (x != StandardName){
                     myDF <<- rbind(myDF, list(x, StandardName, "TRUE")) 
@@ -909,7 +908,7 @@ server <- function(input, output, session) {
       # these lines make the table display responsive to the select all and deselect all buttons
       input$selectAll
       input$deselectAll
-      rhandsontable(values$myDF, type = "text", useTypes = F, selectCallback = T, stringsAsFactors = F, 
+      rhandsontable(values$myDF, useTypes = F, selectCallback = T, stringsAsFactors = F, 
                     rowHeaders = NULL) %>%
         hot_col(col = "Current Term", readOnly = T, type = "text") %>%
         hot_col(col = "Standardized Term", readOnly = T, type = "text") %>%
