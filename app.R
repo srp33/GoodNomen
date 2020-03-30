@@ -23,7 +23,7 @@ options(shiny.maxRequestSize=50*1024^2, htmlwidgets.TOJSON_ARGS = list(na = 'str
 TEMP_DIR_PATH <- ""
 # This will be true if the app is executed inside a Docker container.
 if (dir.exists("/home/shiny"))
-    TEMP_DIR_PATH <- "/tmp/"
+  TEMP_DIR_PATH <- "/tmp/"
 
 API_KEY_FILE_PATH <- paste0(TEMP_DIR_PATH, "BioPortalApiKey.txt")
 ONTOLOGY_LIST_FILE_PATH <- paste0(TEMP_DIR_PATH, "OntologyList.txt")
@@ -481,7 +481,7 @@ server <- function(input, output, session) {
   
   # ** BioPortal Access (Download Ontologies)
   output$ontologySelector <- renderUI ({
-
+    
     if(!is.null(input$file1)) {
       ## List of Ontology Names Recommender   
       # Pop up window informs the user that accessing info from BioPortal will take awhile
@@ -567,7 +567,7 @@ server <- function(input, output, session) {
             }, TimeoutException = function(ex) {
               timeOutError()
             })
-
+            
             recTibble <- as_tibble(Recommenderdf)
             if(ncol(recTibble) > 1){
               recTibble <- as_tibble(Recommenderdf)
@@ -663,6 +663,7 @@ server <- function(input, output, session) {
       diffNum <- 9
     }
     
+    diffNum  = 3 # DELETE THIS MONDAY!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     # If more than 7 days, download full ontology list from BioPortal. Else, read file
     if (diffNum > DAYS_SINCE_DOWNLOAD){
       
@@ -682,7 +683,7 @@ server <- function(input, output, session) {
         }, TimeoutException = function(ex) {
           timeOutError()
         })
- 
+        
         #format column names to retrieve a list of preferred names stored in the ontology
         colnames(myFile) <- sub("_", " ", colnames(myFile))
         colnames(myFile) <- tolower(colnames(myFile))
@@ -821,18 +822,24 @@ server <- function(input, output, session) {
             } 
             
             if (length(myListofCurrentNames) > 1){
-              lapply(myListofCurrentNames, function(x) {
+              sapply(myListofCurrentNames, function(x) {
                 if(!is.na(x)){
-                  myDF <<- rbind(myDF, list(x, StandardName, "TRUE"))
+                  if (x != StandardName){
+                    myDF <<- rbind(myDF, list(x, StandardName, "TRUE")) 
+                  }
                 }
               })
             }
             else{
-              myDF <- rbind(myDF, list(myListofCurrentNames, stringi::stri_trans_totitle(StandardName), "TRUE"), stringsAsFactors = FALSE)
+              if (myListofCurrentNames != StandardName){
+                myDF <- rbind(myDF, list(myListofCurrentNames, stringi::stri_trans_totitle(StandardName), "TRUE"), stringsAsFactors = FALSE)
+              }
             }
           }
           myDF <- myDF[-1,] #there is a random column made in the last step so this strips that back down
           values$myDF <- myDF[!(myDF$`Current Term`==myDF$`Standardized Term`),]
+          # Sort the table alphabetically
+          values$myDF <- myDF[order(myDF$`Standardized Term`),]
           
           # Output the table
           if (length(AutoMatchdf) > 0) {
@@ -902,7 +909,7 @@ server <- function(input, output, session) {
       # these lines make the table display responsive to the select all and deselect all buttons
       input$selectAll
       input$deselectAll
-      rhandsontable(values$myDF, useTypes = F, selectCallback = T, stringsAsFactors = F, 
+      rhandsontable(values$myDF, type = "text", useTypes = F, selectCallback = T, stringsAsFactors = F, 
                     rowHeaders = NULL) %>%
         hot_col(col = "Current Term", readOnly = T, type = "text") %>%
         hot_col(col = "Standardized Term", readOnly = T, type = "text") %>%
@@ -921,10 +928,11 @@ server <- function(input, output, session) {
       # the if statement checks to make sure that at least 1 term has been selected to save. Else, don't change any terms.
       if(length(accepted_list) > 0 ) {
         names(accepted_list) <- paste0("^", accepted$`Current Term`[as.logical(accepted$Accept)], "$")
-        columnNameOfChangedTerms <- input$editThisColumn
+        columnNameOfChangedTerms <- input$editThisColumn #The column from the actual datasheet that is to be changed
         datasetInput <- values$dataset
         
-        #This tells the R Script which terms we want to change and what we want to change them to 
+        #This tells the R Script which terms we want to change and what we want to change them to
+        # It also changes the values in the dataset to their corrected value (if it was checked)
         names <- paste0("^", accepted$`Current Term`[as.logical(accepted$Accept)], "$")
         masterText <<- paste0(masterText, "\n\n# Changing the dataset based on AutoMatch\n", "columnNameOfChangedTerms <- \"", columnNameOfChangedTerms, 
                               "\"\n", "accepted_list <- c(", paste0("'", unname(accepted_list), "'", collapse = ", "), ")",
