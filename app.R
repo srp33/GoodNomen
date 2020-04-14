@@ -93,6 +93,18 @@ timeOutError <- function() {
                         footer = modalButton("Dismiss"), easyClose = F))
 }
 
+autoMatchModule <- function(current, standard, booleanValue){
+  ns <- NS(current)
+  tagList(
+    fluidRow(
+      column(width = 2, p(current, style="padding:9px")),
+      column(width = 3, p(standard, style="padding:9px")),
+      column(width = 2, checkboxInput(ns("checkBox"), value = booleanValue, label = NULL), style="height:9px;"),
+    )
+  )
+}
+
+
 # User Interface (UI) ----------------------------------------------------------------------
 ui <- fluidPage(
   tags$head(
@@ -125,7 +137,7 @@ ui <- fluidPage(
                         # Data Preview 
                         mainPanel(
                           tags$em(textOutput("loadDataPreviewText")),
-                          wellPanel( uiOutput("loadDataColNav"), withSpinner(DTOutput("upload_preview")))
+                          wellPanel( uiOutput("loadDataColNav"), shinycssloaders::withSpinner(DTOutput("upload_preview")))
                         ))),
              
              # * Edit Data (Auto/Manual) ---------------------------------------------------------------
@@ -232,7 +244,7 @@ ui <- fluidPage(
                       mainPanel(
                         tags$em(textOutput("saveDataPreviewText")),
                         uiOutput("saveDataColNav"),
-                        wellPanel(withSpinner(DTOutput("saveDataPreview")))
+                        wellPanel(shinycssloaders::withSpinner(DTOutput("saveDataPreview")))
                       )
              ),
              
@@ -492,7 +504,7 @@ server <- function(input, output, session) {
                                   (a(href = 'https://bioportal.bioontology.org/', 'BioPortal')), " recommended for your dataset. 
                                   Depending on your internet connection and the last time you used Good Nomen, this could take longer than a minute.
                                   Thank you for your patience."),
-                                withSpinner(" ", type = SPINNER_TYPE, proxy.height = "150px"), footer = NULL, easyClose = F))
+                                shinycssloaders::withSpinner(" ", type = SPINNER_TYPE, proxy.height = "150px"), footer = NULL, easyClose = F))
           
           # Check to make sure OntologyList exists
           if(!file.exists(ONTOLOGY_LIST_FILE_PATH)){
@@ -647,7 +659,7 @@ server <- function(input, output, session) {
                             (a(href = 'https://bioportal.bioontology.org/annotator', 'this link')), " and input the terminology you wish to change. 
                             Depending on your internet connection, this could take longer than a minute.", 
                             "Thank you for your patience."),
-                          withSpinner(" ", type = SPINNER_TYPE, proxy.height = "150px"),
+                          shinycssloaders::withSpinner(" ", type = SPINNER_TYPE, proxy.height = "150px"),
                           footer = NULL,
                           easyClose = F))
     
@@ -663,6 +675,7 @@ server <- function(input, output, session) {
       diffNum <- 9
     }
     
+    diffNum <- 3
     # If more than 7 days, download full ontology list from BioPortal. Else, read file
     if (diffNum > DAYS_SINCE_DOWNLOAD){
       
@@ -824,14 +837,14 @@ server <- function(input, output, session) {
               lapply(myListofCurrentNames, function(x) {
                 if(!is.na(x)){
                   if (x != StandardName){
-                    myDF <<- rbind(myDF, list(x, StandardName, "TRUE")) 
+                    myDF <<- rbind(myDF, list(x, StandardName, TRUE)) 
                   }
                 }
               })
             }
             else{
               if (myListofCurrentNames != StandardName){
-                myDF <- rbind(myDF, list(myListofCurrentNames, stringi::stri_trans_totitle(StandardName), "TRUE"), stringsAsFactors = FALSE)
+                myDF <- rbind(myDF, list(myListofCurrentNames, stringi::stri_trans_totitle(StandardName), TRUE), stringsAsFactors = FALSE)
               }
             }
           }
@@ -858,7 +871,7 @@ server <- function(input, output, session) {
               content[[3]] <- actionButton('deselectAll', label = "Deselect All")
               content[[4]] <- br()
               content[[5]] <- br()
-              content[[6]] <- rHandsontableOutput("reviewTable", width = "100%")
+              content[[6]] <- uiOutput("automatchTable")
               content[[7]] <- br()
               content[[8]] <- actionButton('automatchSave', label = "Save")
               content[[9]] <- actionButton('automatchClose', label = "Cancel", class = "secondary_button")
@@ -885,6 +898,7 @@ server <- function(input, output, session) {
         size = "l"
       )
     )
+    renderAutoMatchTable()
     
     # Enable the buttons again.
     enable("editThisColumn") # select box
@@ -896,43 +910,67 @@ server <- function(input, output, session) {
   
   # ** ** Auto-match Supporting Events 
   observeEvent(input$selectAll, ignoreInit = T, {
-    values$myDF$Accept <- rep(TRUE, nrow(myDF))
+    values$myDF[,3] <- rep(TRUE, nrow(values$myDF))
+    renderAutoMatchTable()
   })
   
   observeEvent(input$deselectAll, ignoreInit = T, {
-    values$myDF$Accept <- rep(FALSE, nrow(myDF))
+    values$myDF[,3] <- rep(FALSE, nrow(values$myDF))
+    renderAutoMatchTable()
   })
   
-  output$reviewTable <- renderRHandsontable({
-    if (!is.null(values$myDF)) {
-      # these lines make the table display responsive to the select all and deselect all buttons
-      input$selectAll
-      input$deselectAll
-      rhandsontable(values$myDF, useTypes = F, selectCallback = T, stringsAsFactors = F, 
-                    rowHeaders = NULL) %>%
-        hot_col(col = "Current Term", readOnly = T, type = "text") %>%
-        hot_col(col = "Standardized Term", readOnly = T, type = "text") %>%
-        hot_col(col = "Accept", type = "checkbox")
+  renderAutoMatchTable <- function(){
+    output$automatchTable <- renderUI({
+      tagList(
+        tagList(
+          fluidRow(
+            column(width = 2, align = "center", h4("Current Term")),
+            column(width = 3, h4("Standardized Term")),
+            column(width = 2, h4("Accept?")),
+          )
+        ),
+        lapply(1:nrow(values$myDF), function(i) {
+          autoMatchModule(values$myDF[i,1], values$myDF[i,2], values$myDF[i,3])
+        }),
+      )
+    })
+  }
+  
+  # This generates the automatch table Module and connects the listener (see automatchTableListener)
+  observe({
+    if(!is.null(values$myDF)){
+      lapply(1:nrow(values$myDF), function(i) {
+        callModule(automatchTableListener, values$myDF[i,1], i)
+      })
     }
   })
   
+  # Listeners for the automatch Table Module
+  automatchTableListener <- function(input, output, session, modID){
+    observeEvent(input$checkBox,{
+      if(input$checkBox == FALSE){
+        values$myDF[modID,3] <- FALSE
+      }
+    })
+  }
+  
   # ** ** Auto-match Save 
   observeEvent(input$automatchSave, ignoreInit = T, {
-    if (length(which(as.logical(values$myDF$Accept))) > 0) {
+    if (length(which(values$myDF[,3])) > 0) {
       # Change dataset table values to reflect changes made by editor
       values$lastSelectedEditColumn <- input$editThisColumn
-      accepted <- hot_to_r(input$reviewTable)
-      accepted_list <- accepted$'Standardized Term'[as.logical(accepted$Accept)]
+      accepted <- values$myDF[,3]
+      accepted_list <- values$myDF$'Standardized Term'[accepted]
       
       # the if statement checks to make sure that at least 1 term has been selected to save. Else, don't change any terms.
       if(length(accepted_list) > 0 ) {
-        names(accepted_list) <- paste0("^", accepted$`Current Term`[as.logical(accepted$Accept)], "$")
+        names(accepted_list) <- paste0("^", values$myDF$`Current Term`[accepted], "$")
         columnNameOfChangedTerms <- input$editThisColumn #The column from the actual datasheet that is to be changed
         datasetInput <- values$dataset
         
         #This tells the R Script which terms we want to change and what we want to change them to
         # It also changes the values in the dataset to their corrected value (if it was checked)
-        names <- paste0("^", accepted$`Current Term`[as.logical(accepted$Accept)], "$")
+        names <- paste0("^", values$myDF$`Current Term`[accepted], "$")
         masterText <<- paste0(masterText, "\n\n# Changing the dataset based on AutoMatch\n", "columnNameOfChangedTerms <- \"", columnNameOfChangedTerms, 
                               "\"\n", "accepted_list <- c(", paste0("'", unname(accepted_list), "'", collapse = ", "), ")",
                               "\n","names_accepted_list <- c(", paste0("'", names, "'", collapse=", "), ")",
@@ -1036,7 +1074,7 @@ server <- function(input, output, session) {
                             (a(href = 'https://bioportal.bioontology.org/annotator', 'this link')), " and input the terminology you wish to change.
                             Depending on your internet connection, this could take longer than a minute.",
                             "Thank you for your patience."),
-                          withSpinner(" ", type = SPINNER_TYPE, proxy.height = "150px"),
+                          shinycssloaders::withSpinner(" ", type = SPINNER_TYPE, proxy.height = "150px"),
                           footer = NULL,
                           easyClose = F))
     
@@ -1174,7 +1212,7 @@ server <- function(input, output, session) {
     
     showModal(modalDialog(title = "Loading New Ontology.",
                           p("Please be patient, this shouldn't take long."),
-                          withSpinner(" ", type = SPINNER_TYPE, proxy.height = "150px"),
+                          shinycssloaders::withSpinner(" ", type = SPINNER_TYPE, proxy.height = "150px"),
                           footer = NULL,
                           easyClose = F))
     downloadURL <- sprintf(paste("http://data.bioontology.org/ontologies/", values$OntologyAcronym, "/download?download_format=csv&display_links=false&apikey=", API_KEY, sep=""))
@@ -1248,7 +1286,7 @@ server <- function(input, output, session) {
                               (a(href = 'https://bioportal.bioontology.org/annotator', 'BioPortal')), ". Feel free to write your own column names as well.",  
                               "Depending on your internet connection and the last time you used Good Nomen, this could take longer than a minute.", 
                               "Thank you for your patience."),
-                            withSpinner(" ", type = SPINNER_TYPE, proxy.height = "150px"),
+                            shinycssloaders::withSpinner(" ", type = SPINNER_TYPE, proxy.height = "150px"),
                             footer = NULL,
                             easyClose = F))
       
