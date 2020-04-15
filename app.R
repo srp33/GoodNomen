@@ -99,7 +99,7 @@ autoMatchModule <- function(current, standard, booleanValue){
     fluidRow(
       column(width = 2, p(current, style="padding:9px")),
       column(width = 3, p(standard, style="padding:9px")),
-      column(width = 2, checkboxInput(ns("checkBox"), value = booleanValue, label = NULL), style="height:9px;"),
+      column(width = 2, checkboxInput(ns("checkBox"), value = booleanValue, label = NULL), style="height:9px;")
     )
   )
 }
@@ -234,7 +234,7 @@ ui <- fluidPage(
                         tags$img(src = 'Logo.png', align = "right", height = "100px"),
                         h4("Save Data"),
                         p("Enter a name for the output file and select an extension. Do not include the extension in the file name."),
-                        uiOutput('outputFileName'),
+                        uiOutput('outputFileNameUI'),
                         uiOutput('extensionSelector'),
                         uiOutput("downloadButtons"),
                         uiOutput("tab"), hr(),
@@ -434,7 +434,7 @@ server <- function(input, output, session) {
       incProgress(1/9, detail = "terminology selector")
       incProgress(1/9, detail = "column selector")
       
-      output$outputFileName <- renderUI({
+      output$outputFileNameUI <- renderUI({
         textInput('outputFileName',
                   label = div(
                     "Output File Name (without extension):",
@@ -442,7 +442,7 @@ server <- function(input, output, session) {
                   ),
                   value = paste0(
                     substr(input$file1, 0, (nchar(input$file1) - if (extension() == ".xlsx") 5 else 4)), "_standardized"
-                  ))
+                  )[1])
       })
       incProgress(1/9, detail = "file name selector")
       output$extensionSelector <- renderUI({
@@ -867,7 +867,7 @@ server <- function(input, output, session) {
                   "to the standardized term."
                 )
               )
-              content[[2]] <- actionButton('selectAll', label = "Select All")
+              content[[2]] <- actionButton('selectAllButton', label = "Select All")
               content[[3]] <- actionButton('deselectAll', label = "Deselect All")
               content[[4]] <- br()
               content[[5]] <- br()
@@ -909,12 +909,12 @@ server <- function(input, output, session) {
   })
   
   # ** ** Auto-match Supporting Events 
-  observeEvent(input$selectAll, ignoreInit = T, {
+  observeEvent(input$selectAllButton,{
     values$myDF[,3] <- rep(TRUE, nrow(values$myDF))
     renderAutoMatchTable()
   })
   
-  observeEvent(input$deselectAll, ignoreInit = T, {
+  observeEvent(input$deselectAll,  {
     values$myDF[,3] <- rep(FALSE, nrow(values$myDF))
     renderAutoMatchTable()
   })
@@ -926,7 +926,7 @@ server <- function(input, output, session) {
           fluidRow(
             column(width = 2, align = "center", h4("Current Term")),
             column(width = 3, h4("Standardized Term")),
-            column(width = 2, h4("Accept?")),
+            column(width = 2, h4("Accept?"))
           )
         ),
         lapply(1:nrow(values$myDF), function(i) {
@@ -940,7 +940,7 @@ server <- function(input, output, session) {
   observe({
     if(!is.null(values$myDF)){
       lapply(1:nrow(values$myDF), function(i) {
-        callModule(automatchTableListener, values$myDF[i,1], i)
+        callModule(automatchTableListener, values$myDF[i,3],i)
       })
     }
   })
@@ -948,8 +948,11 @@ server <- function(input, output, session) {
   # Listeners for the automatch Table Module
   automatchTableListener <- function(input, output, session, modID){
     observeEvent(input$checkBox,{
+      print(modID)
       if(input$checkBox == FALSE){
         values$myDF[modID,3] <- FALSE
+      }else{
+        values$myDF[modID,3] <- TRUE
       }
     })
   }
