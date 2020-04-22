@@ -10,7 +10,8 @@ library(shinycssloaders)
 library(shinyjs)
 library(tidyverse)
 library(tools)
-library(writexl)"
+library(writexl)
+library(readxl)"
 
 masterText <- NULL
 eval(parse(text=loadLibraries))
@@ -275,7 +276,8 @@ server <- function(input, output, session) {
                            extension = "", terminology = NULL, lastSelectedEditColumn = "", viewingSubset = c(1, 5),
                            manualSavedMessage = NULL, synonyms = NULL, myDF = NULL, OntologyAcronym = "",
                            RecommendedOntologies = NULL, listOfOntNames = NULL, ontName = "", TOTAL_TERM_LIST = NULL,
-                           recTermsList = NULL)#, manualSelection = NULL)
+                           recTermsList = NULL, numTimesSelectAll = 0, numTimesDeselectAll = 0, deselectedPushed = FALSE,
+                           selectedPushed = FALSE, numTimesClicked = 0)
   
   extension <- reactive({
     if (!is.null(input$file1)) {
@@ -867,7 +869,7 @@ server <- function(input, output, session) {
                   "to the standardized term."
                 )
               )
-              content[[2]] <- actionButton('selectAllButton', label = "Select All")
+              content[[2]] <- actionButton('selectAll', label = "Select All")
               content[[3]] <- actionButton('deselectAll', label = "Deselect All")
               content[[4]] <- br()
               content[[5]] <- br()
@@ -908,14 +910,16 @@ server <- function(input, output, session) {
     enable("editNext") # next button
   })
   
-  # ** ** Auto-match Supporting Events 
-  observeEvent(input$selectAllButton,{
+  # ** ** Auto-match Supporting Events
+  observeEvent(input$selectAll,{
     values$myDF[,3] <- rep(TRUE, nrow(values$myDF))
+    values$selectedPushed <- TRUE
     renderAutoMatchTable()
   })
   
   observeEvent(input$deselectAll,  {
     values$myDF[,3] <- rep(FALSE, nrow(values$myDF))
+    values$deselectedPushed <- TRUE
     renderAutoMatchTable()
   })
   
@@ -940,19 +944,31 @@ server <- function(input, output, session) {
   observe({
     if(!is.null(values$myDF)){
       lapply(1:nrow(values$myDF), function(i) {
-        callModule(automatchTableListener, values$myDF[i,3],i)
+        callModule(automatchTableListener, values$myDF[i,1],i)
       })
     }
   })
   
   # Listeners for the automatch Table Module
   automatchTableListener <- function(input, output, session, modID){
-    observeEvent(input$checkBox,{
-      print(modID)
-      if(input$checkBox == FALSE){
-        values$myDF[modID,3] <- FALSE
+    observeEvent(input$checkBox, {
+      if(values$deselectedPushed == FALSE && values$selectedPushed == FALSE){
+        if(input$checkBox == FALSE){
+          values$myDF[modID,3] <- FALSE
+        } else if (input$checkBox == TRUE){
+          values$myDF[modID,3] <- TRUE
+        }
       }else{
-        values$myDF[modID,3] <- TRUE
+        values$numTimesClicked = values$numTimesClicked + 1
+      }
+    })
+    
+    # Listener to control the select all and deselect all button
+    observe({
+      if (values$numTimesClicked >= nrow(values$myDF)){
+        values$numTimesClicked <- 0
+        values$selectedPushed = FALSE
+        values$deselectedPushed = FALSE
       }
     })
   }
@@ -961,6 +977,7 @@ server <- function(input, output, session) {
   observeEvent(input$automatchSave, ignoreInit = T, {
     if (length(which(values$myDF[,3])) > 0) {
       # Change dataset table values to reflect changes made by editor
+      browser()
       values$lastSelectedEditColumn <- input$editThisColumn
       accepted <- values$myDF[,3]
       accepted_list <- values$myDF$'Standardized Term'[accepted]
