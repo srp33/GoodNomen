@@ -977,7 +977,6 @@ server <- function(input, output, session) {
   observeEvent(input$automatchSave, ignoreInit = T, {
     if (length(which(values$myDF[,3])) > 0) {
       # Change dataset table values to reflect changes made by editor
-      browser()
       values$lastSelectedEditColumn <- input$editThisColumn
       accepted <- values$myDF[,3]
       accepted_list <- values$myDF$'Standardized Term'[accepted]
