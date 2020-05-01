@@ -17,10 +17,9 @@ RUN apt-get update -qq \
     shinyjs \
     shinyWidgets \
     writexl \
-  && rm -rf /srv/shiny-server/* \
-  && mkdir /srv/shiny-server/GoodNomen
+  && rm -rf /srv/shiny-server/*
 
-COPY ./app.R /srv/shiny-server/GoodNomen/
-COPY ./www/ /srv/shiny-server/GoodNomen/www/
+COPY app.R /srv/shiny-server/
+COPY ./www/ /srv/shiny-server/www/
 
 USER shiny

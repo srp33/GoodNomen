@@ -14,14 +14,10 @@
 
 cp BioPortalApiKey.txt /tmp/
 
-## This will execute the container in detached mode.
-## This means it will continue running after you log out.
-#docker run --rm -d --name goodnomen -p 8080:3838 \
-#    -v /tmp:/keys \
-#    srp33/goodnomen:v1
-
 ## This will execute the container in interactive mode.
 ## Hit Ctrl-C when you want to close the container.
 docker run --rm -i -t --name goodnomen -p 8080:3838 \
     -v /tmp:/tmp \
     srp33/goodnomen:v1
+
+#docker run --rm -i -t srp33/goodnomen:v1 /bin/bash
