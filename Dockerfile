@@ -8,6 +8,7 @@ RUN apt-get update -qq \
   && install2.r --error --deps TRUE \
     DT \
     RCurl \
+    readxl \
     rhandsontable \
     rjson \
     RJSONIO \
