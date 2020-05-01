@@ -686,7 +686,7 @@ server <- function(input, output, session) {
         removeModal()
         ## SITUATION: ONTOLOGY IS LOCKED FOR DOWNLOAD & it's never been downloaded before
         lockedOntologyError()
-      }else{
+      } else {
         tryCatch({
           res <- R.utils::withTimeout(  {
             tmpFilePath <- paste0(tempfile(), ".csv.gz")
@@ -716,7 +716,7 @@ server <- function(input, output, session) {
         removeModal()
         updateTabsetPanel(session, 'tabs', selected = 'editTable')
       }
-    }else{
+    } else {
       myList <- readLines(fileName)
       myList <- unlist(lapply(myList, noquote))
       values$TOTAL_TERM_LIST <<- myList
