@@ -520,7 +520,7 @@ server <- function(input, output, session) {
           dateDif <- as.Date(strptime(dateToday, "%Y-%m-%d"))-as.Date(strptime(lastRunDate,"%Y-%m-%d"))
           diffNum <- as.numeric(dateDif)
           
-          # If more than 7 days, download full ontology list from BioPortal. Else, read file
+          # If needed, download full ontology list from BioPortal. Else, read file
           myContent <- NULL
           if (diffNum > DAYS_SINCE_DOWNLOAD){ 
             tryCatch({
@@ -651,8 +651,8 @@ server <- function(input, output, session) {
   
   #This observe event handles downloading the ontology, checking to see if it's locked, and moving forward to the next page
   observeEvent(input$buttonLoadThenNext, {
-    OntologyLstAcr <- strsplit(values$ontName, " ")
-    values$OntologyAcronym <<- OntologyLstAcr[[1]][1]
+    # Parse the acronym from the ontology name and show it
+    values$OntologyAcronym <<- strsplit(values$ontName, " ")[[1]][1]
     
     values$manualSaveMessage <- NULL
     showModal(modalDialog(title = "Loading Standardized Terms from BioPortal.",
@@ -666,22 +666,21 @@ server <- function(input, output, session) {
                           easyClose = F))
     
     # Get the last date modified from a file and see if it's been 7 days
-    fileName <- paste0(TEMP_DIR_PATH, values$OntologyAcronym, "_Ontology.txt")
-    if (file.exists(fileName)){
-      lastRunDate <- file.mtime(fileName)
-      dateToday <- Sys.Date()
-      dateDif <- as.Date(strptime(dateToday, "%Y-%m-%d"))-as.Date(strptime(lastRunDate,"%Y-%m-%d"))
-      diffNum <- as.numeric(dateDif)
-    }
-    else{
-      diffNum <- 9
+    ontFileName <- paste0(TEMP_DIR_PATH, values$OntologyAcronym, "_Ontology.txt")
+
+    shouldDownload <- TRUE
+    if (file.exists(ontFileName)) {
+      lastRunDate <- file.mtime(ontFileName)
+      dateDif <- as.Date(strptime(Sys.Date(), "%Y-%m-%d"))-as.Date(strptime(lastRunDate,"%Y-%m-%d"))
+
+      if (as.numeric(dateDif) <= DAYS_SINCE_DOWNLOAD)
+        shouldDownload <- FALSE
     }
     
-    diffNum <- 3
-    # If more than 7 days, download full ontology list from BioPortal. Else, read file
-    if (diffNum > DAYS_SINCE_DOWNLOAD){
-      
+    # If needed, download this ontology from BioPortal. Else, read cached file.
+    if (shouldDownload) {
       downloadURL <- sprintf(paste("http://data.bioontology.org/ontologies/", values$OntologyAcronym, "/download?download_format=csv&display_links=false&apikey=", API_KEY, sep=""))
+
       if (!url.exists(downloadURL)) {
         removeModal()
         ## SITUATION: ONTOLOGY IS LOCKED FOR DOWNLOAD & it's never been downloaded before
@@ -711,13 +710,13 @@ server <- function(input, output, session) {
           values$TOTAL_TERM_LIST <- sort(pull(myFile, var = "preferred label"))
         }
         #TODO make an error message to show them inconsistencies in downloaded data
-        write.table(values$TOTAL_TERM_LIST, file = fileName, append= FALSE, quote = FALSE,
+        write.table(values$TOTAL_TERM_LIST, file = ontFileName, append= FALSE, quote = FALSE,
                     row.names = FALSE, col.names = FALSE)
         removeModal()
         updateTabsetPanel(session, 'tabs', selected = 'editTable')
       }
     } else {
-      myList <- readLines(fileName)
+      myList <- readLines(ontFileName)
       myList <- unlist(lapply(myList, noquote))
       values$TOTAL_TERM_LIST <<- myList
       removeModal()

@@ -20,7 +20,7 @@ RUN apt-get update -qq \
     writexl \
   && rm -rf /srv/shiny-server/*
 
-COPY app.R /srv/shiny-server/
-COPY ./www/ /srv/shiny-server/www/
+COPY app.R /srv/shiny-server/GoodNomen/
+COPY ./www/ /srv/shiny-server/GoodNomen/www/
 
 USER shiny
