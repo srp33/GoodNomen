@@ -18,6 +18,6 @@ cp BioPortalApiKey.txt /tmp/
 ## Hit Ctrl-C when you want to close the container.
 docker run --rm -i -t --name goodnomen -p 8080:3838 \
     -v /tmp:/tmp \
-    srp33/goodnomen:$(cat VERSION)
+    srp33/goodnomen:v$(cat VERSION)
 
-#docker run --rm -i -t srp33/goodnomen:$(cat VERSION) /bin/bash
+#docker run --rm -i -t srp33/goodnomen:v$(cat VERSION) /bin/bash
