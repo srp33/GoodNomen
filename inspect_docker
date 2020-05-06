@@ -6,4 +6,4 @@
 #   see how it is configured.
 ############################################
 
-docker run -t -i --rm srp33/goodnomen:v1 /bin/bash
+docker run -t -i --rm srp33/goodnomen:$(cat VERSION) /bin/bash

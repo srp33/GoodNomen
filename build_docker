@@ -5,4 +5,4 @@
 # Docker image based on the Dockerfile.
 ############################################
 
-docker build -t srp33/goodnomen:v1 .
+docker build -t srp33/goodnomen:$(cat VERSION) .
