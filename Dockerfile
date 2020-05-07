@@ -22,5 +22,6 @@ RUN apt-get update -qq \
 
 COPY app.R /srv/shiny-server/GoodNomen/
 COPY ./www/ /srv/shiny-server/GoodNomen/www/
+COPY BioPortalApiKey.txt /tmp/
 
 USER shiny

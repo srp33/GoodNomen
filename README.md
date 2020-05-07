@@ -2,19 +2,19 @@
 
 # Introduction
 
-*GoodNomen* enables researchers to standardize tabular data files through a user-friendly interface.
-
-# Background
-
-We will post the preprint here later.
+*GoodNomen* enables researchers to standardize tabular data against ontologies from [BioPortal](https://bioportal.bioontology.org/) via a user-friendly interface. Column names and data values can be standardized.
 
 # Demo Version
 
-We will post a link to this later.
+You can try Good Nomen [here](https://bioapps.byu.edu/GoodNomen).
 
 # Installing and running Good Nomen
 
-This repository provides scripts for executing Good Nomen within a Docker container. First, you will need to install the Docker engine (see [https://docs.docker.com/install](https://docs.docker.com/install/)). Then execute the `build_docker` script at the command line to build the Good Nomen Docker image (this may need to be modified slightly on Windows). After the image has been built, use the `run_docker` script to start a container with Good Nomen running inside it.
+This repository provides scripts for executing Good Nomen within a Docker container. First, you will need to install the Docker engine (see [https://docs.docker.com/install](https://docs.docker.com/install/)).
+
+Second, you will need to obtain an API key from [BioPortal](https://bioportal.bioontology.org/help#Getting_an_API_key). Store this in the root directory of this repository in a file called `BioPortalApiKey.txt`.
+
+Then execute the `build_docker` script at the command line (this may need to be modified slightly on Windows). After the image has been built, use the `run_docker` script to start a container with Good Nomen running inside it.
 
 # Contact Us
 
