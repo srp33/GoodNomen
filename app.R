@@ -26,7 +26,7 @@ TEMP_DIR_PATH <- ""
 if (dir.exists("/home/shiny"))
   TEMP_DIR_PATH <- "/tmp/"
 
-API_KEY_FILE_PATH <- paste0(TEMP_DIR_PATH, "BioPortalApiKey.txt")
+API_KEY_FILE_PATH <- "BioPortalApiKey.txt"
 ONTOLOGY_LIST_FILE_PATH <- paste0(TEMP_DIR_PATH, "OntologyList.txt")
 
 # Global functions and Definitions --------------------------------------------------------
