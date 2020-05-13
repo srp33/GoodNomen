@@ -14,7 +14,7 @@ This repository provides scripts for executing Good Nomen within a Docker contai
 
 Second, you will need to obtain an API key from [BioPortal](https://bioportal.bioontology.org/help#Getting_an_API_key). Store this in the root directory of this repository in a file called `BioPortalApiKey.txt`.
 
-Then execute the `build_docker` script at the command line (this may need to be modified slightly on Windows). After the image has been built, use the `run_docker` script to start a container with Good Nomen running inside it. You should then be able to access the app at [http://localhost:8080](http://localhost:8080).
+Then execute the `build_docker` script at the command line (this may need to be modified slightly on Windows). After the image has been built, use the `run_docker` script to start a container with Good Nomen running inside it. You should then be able to access the app at [http://localhost:8080/GoodNomen](http://localhost:8080/GoodNomen).
 
 # Contact Us
 
