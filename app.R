@@ -70,9 +70,9 @@ addLibrary <- function(librariesList) {
 extensionsMap <- c(".txt" = "tsv", ".tsv" = "tsv", ".csv" = "csv", ".xls" = "excel", ".xlsx" = "excel")
 
 #define function for collapsing a list with proper grammar
-collapse_text <- function(my_list) {
-  last_index <- length(my_list)
-  paste(paste(my_list[-1 * last_index], collapse = ", "), my_list[last_index], sep = ", and ")
+collapseText <- function(myList) {
+  last_index <- length(myList)
+  paste(paste(myList[-1 * last_index], collapse = ", "), myList[last_index], sep = ", and ")
 }
 
 getRecommendedTerms <- function(dataSet) {  # Get a list of terms to standardize
@@ -123,7 +123,7 @@ ui <- fluidPage(
                                      p("Welcome to Good Nomen, an interface for mapping clinical data files based on standardized terminologies."),
                                      p(paste0(
                                        "Please upload a file containing patient data on each row and clinical variables in each column. ",
-                                       "Accepted file types include ", collapse_text(names(extensionsMap)), ".")
+                                       "Accepted file types include ", collapseText(names(extensionsMap)), ".")
                                      ), 
                                      fileInput(inputId = "file1", label = "Choose Input File:", 
                                                multiple = FALSE, accept = names(extensionsMap), width = NULL, buttonLabel = "Browse...", placeholder = "No file selected"),
@@ -138,7 +138,7 @@ ui <- fluidPage(
                         # Data Preview 
                         mainPanel(
                           tags$em(textOutput("loadDataPreviewText")),
-                          wellPanel( uiOutput("loadDataColNav"), shinycssloaders::withSpinner(DTOutput("upload_preview")))
+                          wellPanel(uiOutput("loadDataColNav"), shinycssloaders::withSpinner(DTOutput("uploadPreview")))
                         ))),
              
              # * Edit Data (Auto/Manual) ---------------------------------------------------------------
@@ -272,17 +272,17 @@ server <- function(input, output, session) {
   session$allowReconnect(TRUE)
   
   #Reactive Values
-  values <- reactiveValues(datasetInput = NULL, dataset = NULL, headerDisabled = FALSE, 
+  values <- reactiveValues(datasetInput = NULL, dataset = NULL, 
                            extension = "", terminology = NULL, lastSelectedEditColumn = "", viewingSubset = c(1, 5),
-                           manualSavedMessage = NULL, synonyms = NULL, myDF = NULL, OntologyAcronym = "",
-                           RecommendedOntologies = NULL, listOfOntNames = NULL, ontName = "", TOTAL_TERM_LIST = NULL,
-                           recTermsList = NULL, numTimesSelectAll = 0, numTimesDeselectAll = 0, deselectedPushed = FALSE,
+                           myDF = NULL, ontologyAcronym = "",
+                           recommendedOntologies = NULL, listOfOntNames = NULL, ontName = "", TOTAL_TERM_LIST = NULL,
+                           recTermsList = NULL, deselectedPushed = FALSE,
                            selectedPushed = FALSE, numTimesClicked = 0)
   
   extension <- reactive({
     if (!is.null(input$file1)) {
-      ext_search <- paste0(paste(str_replace(names(extensionsMap), "\\.", "\\\\."), collapse = "$|"), "$")
-      ext <- str_extract(input$file1$datapath, ext_search)
+      extSearch <- paste0(paste(str_replace(names(extensionsMap), "\\.", "\\\\."), collapse = "$|"), "$")
+      ext <- str_extract(input$file1$datapath, extSearch)
     }
   })
   
@@ -298,13 +298,13 @@ server <- function(input, output, session) {
         options = list(dom = "tp", pageLength = 10,
                        columnDefs = list(list(
                          targets = "_all",
-                         ##Makes it so that the table will only display the first (col_width()) chars.
+                         ##Makes it so that the table will only display the first (colWidth()) chars.
                          ##See https://rstudio.github.io/DT/options.html
                          ##We want to display at least 30 chars.
                          render = JS(
                            paste0("function(data, type, row, meta) {",
-                                  "return type === 'display' && typeof data === 'string' && data.length > ", max(floor(col_width() / 2), 15), " ?",
-                                  "'<span title=\"' + data + '\">' + data.substr(0,", max(floor(col_width() / 2), 15), ") + '...</span>' : data;",
+                                  "return type === 'display' && typeof data === 'string' && data.length > ", max(floor(colWidth() / 2), 15), " ?",
+                                  "'<span title=\"' + data + '\">' + data.substr(0,", max(floor(colWidth() / 2), 15), ") + '...</span>' : data;",
                                   "}"))
                        ))))
     }
@@ -313,12 +313,12 @@ server <- function(input, output, session) {
   lockedOntologyError <- function(){
     listOfOntNames <- readLines(ONTOLOGY_LIST_FILE_PATH)
     listOfOntNames <- listOfOntNames[!(listOfOntNames %in% values$ontName)]
-    values$RecommendedOntologies <<- values$RecommendedOntologies[!(values$RecommendedOntologies %in% values$ontName)]
+    values$recommendedOntologies <<- values$recommendedOntologies[!(values$recommendedOntologies %in% values$ontName)]
     title <- "Error! Ontology locked for download!!"
     content <- tagList()
     content[[1]] <- p("Due to licensing restrictions, the ontology you selected to match terms with is locked for download from BioPortal. Please select a different ontology.")
     content[[2]] <- selectizeInput('newOntologySelector', label = "Select new Ontology:", 
-                                   choices = list('Recommended Ontologies' = c("", values$RecommendedOntologies),
+                                   choices = list('Recommended Ontologies' = c("", values$recommendedOntologies),
                                                   'All Ontologies' = listOfOntNames),
                                    options = list(
                                      placeholder = "Please choose terms above...",
@@ -330,6 +330,7 @@ server <- function(input, output, session) {
       )
     )
   }
+  
   # Navigation button between pages of the app
   setColumnNavigation <- function(identifier) {
     if (!is.null(values$dataset)) {
@@ -343,26 +344,26 @@ server <- function(input, output, session) {
   }
   
   # the width of the columns, as determined by the width of the column names
-  col_width <- reactive({
+  colWidth <- reactive({
     mean(nchar(colnames(values$dataset)))
   }) 
   
   # makes sure that we view only the number of columns that will fit on the screen at any given time. a small screen fits about 75 
   # characters at a time. we don't want to display more than 5 columns at a time.
-  move_by <- reactive({
-    min(max(floor(75 / col_width()), 1), 5)
+  moveBy <- reactive({
+    min(max(floor(75 / colWidth()), 1), 5)
   })
   
   observeEvent(input$advance_clicked, {
-    start <- min(ncol(values$datasetInput), values$viewingSubset[1] + move_by())
-    end <- min(ncol(values$datasetInput), start + (move_by() - 1))
+    start <- min(ncol(values$datasetInput), values$viewingSubset[1] + moveBy())
+    end <- min(ncol(values$datasetInput), start + (moveBy() - 1))
     values$viewingSubset <- c(start, end)
     session$sendCustomMessage(type = "resetValue", "advance_clicked")
   }, ignoreNULL = TRUE)
   
   observeEvent(input$retract_clicked, {
-    end <- max(1, values$viewingSubset[2] - move_by())
-    start <- max(1, end - (move_by() - 1))
+    end <- max(1, values$viewingSubset[2] - moveBy())
+    start <- max(1, end - (moveBy() - 1))
     values$viewingSubset <- c(start, end)
     session$sendCustomMessage(type = "resetValue", "retract_clicked")
   }, ignoreNULL = TRUE)
@@ -398,7 +399,7 @@ server <- function(input, output, session) {
     if(any(is.na(colnames(values$dataset)))){
       colnames(values$dataset)[is.na(colnames(values$dataset))] <- "Null1"
     }
-    values$viewingSubset <- c(1, min(move_by(), ncol(values$datasetInput))) #this changes the UI view on the application
+    values$viewingSubset <- c(1, min(moveBy(), ncol(values$datasetInput))) #this changes the UI view on the application
     return()
   }
   
@@ -448,8 +449,8 @@ server <- function(input, output, session) {
       })
       incProgress(1/9, detail = "file name selector")
       output$extensionSelector <- renderUI({
-        select_ext <- if (grepl("xls", extension())) ".xlsx" else extension()
-        selectInput('extension', label = div("Select Extension:", helpButton("Select an extension for the output file.")), choices = setdiff(names(extensionsMap), c(".xls", ".txt")), selected = select_ext) #.xls
+        selectExt <- if (grepl("xls", extension())) ".xlsx" else extension()
+        selectInput('extension', label = div("Select Extension:", helpButton("Select an extension for the output file.")), choices = setdiff(names(extensionsMap), c(".xls", ".txt")), selected = selectExt) #.xls
       })
       incProgress(1/9, detail = "extension selector")
       incProgress(1/9, detail = "edit data selector")
@@ -458,12 +459,11 @@ server <- function(input, output, session) {
   
   # When the header pops up after you upload the file
   observeEvent(input$header, {
-    numeric_header <- as.numeric(input$header)
-    if (numeric_header != 1) {
+    numericHeader <- as.numeric(input$header)
+    if (numericHeader != 1) {
       disable("header")
-      values$headerDisabled <- TRUE
     }
-    setColNames(numeric_header + 1, if (numeric_header > 0) 1 else 0) 
+    setColNames(numericHeader + 1, if (numericHeader > 0) 1 else 0) 
   }, ignoreNULL = TRUE)
   
   output$colnamesSelector <- renderUI({
@@ -486,11 +486,11 @@ server <- function(input, output, session) {
   })
   
   # This changes the dataset if new rows are selected
-  observeEvent(input$headerPreview_rows_selected, {
+  observeEvent(input$headerPreviewRowsSelected, {
     if(any(is.na(colnames(values$datasetInput)))){
       colnames(values$datasetInput)[is.na(colnames(values$datasetInput))] <- "Null3"
     }
-    setColNames(as.numeric(input$header) + 1, input$headerPreview_rows_selected)
+    setColNames(as.numeric(input$header) + 1, input$headerPreviewRowsSelected)
   }, ignoreNULL = TRUE)
   
   # ** BioPortal Access (Download Ontologies)
@@ -498,7 +498,7 @@ server <- function(input, output, session) {
     
     if(!is.null(input$file1)) {
       ## List of Ontology Names Recommender   
-      # Pop up window informs the user that accessing info from BioPortal will take awhile
+      # Pop up window informs the user that accessing info from BioPortal will take a while
       tryCatch({
         res <- R.utils::withTimeout(  { 
           showModal(modalDialog(title = "Loading Ontologies from BioPortal",
@@ -540,9 +540,9 @@ server <- function(input, output, session) {
               }
             })
             
-            ContentDataFrame <<- data.frame(t(sapply(myContent,c)))
-            ContentDataFrame$nameAndAcronymn = paste(ContentDataFrame$acronym, ContentDataFrame$name) #Makes a column with both acronym and name
-            listOfOntNames <<- ContentDataFrame[, ncol(ContentDataFrame)] # This accesses the last column of the dateframe
+            contentDataFrame <<- data.frame(t(sapply(myContent,c)))
+            contentDataFrame$nameAndAcronymn = paste(contentDataFrame$acronym, contentDataFrame$name) #Makes a column with both acronym and name
+            listOfOntNames <<- contentDataFrame[, ncol(contentDataFrame)] # This accesses the last column of the dateframe
             write.table(listOfOntNames, file = ONTOLOGY_LIST_FILE_PATH, append= FALSE, quote = FALSE,
                         row.names = FALSE, col.names = FALSE)
           }
@@ -569,22 +569,22 @@ server <- function(input, output, session) {
                 break;
               }
             }
-            RecommendedOntologies <- ""; #Error and try again later
+            recommendedOntologies <- ""; #Error and try again later
           }
           else {
             # Get the acronym for the top three recommended Ontologies 
             tryCatch({
               res <- R.utils::withTimeout(  { 
-                DataFrameRecommend <- jsonlite::fromJSON(rURL) 
-                Recommenderdf <- as.data.frame(t(sapply(DataFrameRecommend,c)))
+                dataFrameRecommend <- jsonlite::fromJSON(rURL) 
+                recommenderDF <- as.data.frame(t(sapply(dataFrameRecommend,c)))
               }, timeout = TIMEOUT_TIME)
             }, TimeoutException = function(ex) {
               timeOutError()
             })
             
-            recTibble <- as_tibble(Recommenderdf)
+            recTibble <- as_tibble(recommenderDF)
             if(ncol(recTibble) > 1){
-              recTibble <- as_tibble(Recommenderdf)
+              recTibble <- as_tibble(recommenderDF)
               recTibble <- recTibble %>% 
                 select(ontologies) %>% 
                 unnest(ontologies) %>% 
@@ -594,16 +594,16 @@ server <- function(input, output, session) {
               # If there are fewer than three elements in the recommended ontology, set the NUM_RECOMMENDED_ONTOLOGIES to the size of the list created
               if (length(recTibble) < NUM_REC_ONTO){NUM_REC_ONTO <<- length(recTibble)}
               
-              RecommendedOntologies <- recTibble[1:NUM_REC_ONTO] 
+              recommendedOntologies <- recTibble[1:NUM_REC_ONTO] 
               for (i in 1:NUM_REC_ONTO){
-                thisTerm <- filter(ontologyTibble, Acronym == RecommendedOntologies[i]) %>% select(FullName)
-                RecommendedOntologies <- replace(RecommendedOntologies, i, paste(RecommendedOntologies[i], unlist(unname(thisTerm)), " ", collapse = " "))
+                thisTerm <- filter(ontologyTibble, Acronym == recommendedOntologies[i]) %>% select(FullName)
+                recommendedOntologies <- replace(recommendedOntologies, i, paste(recommendedOntologies[i], unlist(unname(thisTerm)), " ", collapse = " "))
               }
             } else{
-              RecommendedOntologies <<- ""
+              recommendedOntologies <<- ""
             }
           }
-          values$RecommendedOntologies <<- RecommendedOntologies
+          values$recommendedOntologies <<- recommendedOntologies
         }, timeout = TIMEOUT_TIME)
       }, TimeoutException = function(ex) {
         timeOutError()
@@ -614,7 +614,7 @@ server <- function(input, output, session) {
                      label = div(
                        "Select Ontology:",
                        helpButton("Select an ontology from BioPortal.")),
-                     choices = list('Recommended Ontologies' = c("", RecommendedOntologies),
+                     choices = list('Recommended Ontologies' = c("", recommendedOntologies),
                                     'All Ontologies' = listOfOntNames),
                      options = list(placeholder = "Select ontology or start typing...",
                                     closeAfterSelect = TRUE))
@@ -625,8 +625,6 @@ server <- function(input, output, session) {
   output$page1Next <- renderUI({
     values$ontName <<- input$ontologySelector
     if(input$ontologySelector != "" && !is.null(input$ontologySelector)) {
-      #actionButton("nextbutton", "Next", style = "color: #fff; background-color: #2ca25f; border-color: #2ca25f")
-      #actionButton("buttonLoadThenNext", "Next", class = "next_button")
       actionButton("buttonLoadThenNext", "Next", style = "color: #fff; background-color: #2ca25f; border-color: #2ca25f")
     }
   }) 
@@ -644,7 +642,7 @@ server <- function(input, output, session) {
     setColumnNavigation("loadData")
   })
   
-  output$upload_preview <- renderDT({
+  output$uploadPreview <- renderDT({
     dataPreview()
     myDataTable <- dataPreview()
   })
@@ -652,7 +650,7 @@ server <- function(input, output, session) {
   #This observe event handles downloading the ontology, checking to see if it's locked, and moving forward to the next page
   observeEvent(input$buttonLoadThenNext, {
     # Parse the acronym from the ontology name and show it
-    values$OntologyAcronym <<- strsplit(values$ontName, " ")[[1]][1]
+    values$ontologyAcronym <<- strsplit(values$ontName, " ")[[1]][1]
     
     values$manualSaveMessage <- NULL
     showModal(modalDialog(title = "Loading Standardized Terms from BioPortal.",
@@ -666,7 +664,7 @@ server <- function(input, output, session) {
                           easyClose = F))
     
     # Get the last date modified from a file and see if it's been 7 days
-    ontFileName <- paste0(TEMP_DIR_PATH, values$OntologyAcronym, "_Ontology.txt")
+    ontFileName <- paste0(TEMP_DIR_PATH, values$ontologyAcronym, "_Ontology.txt")
 
     shouldDownload <- TRUE
     if (file.exists(ontFileName)) {
@@ -679,7 +677,7 @@ server <- function(input, output, session) {
     
     # If needed, download this ontology from BioPortal. Else, read cached file.
     if (shouldDownload) {
-      downloadURL <- sprintf(paste("http://data.bioontology.org/ontologies/", values$OntologyAcronym, "/download?download_format=csv&display_links=false&apikey=", API_KEY, sep=""))
+      downloadURL <- sprintf(paste("http://data.bioontology.org/ontologies/", values$ontologyAcronym, "/download?download_format=csv&display_links=false&apikey=", API_KEY, sep=""))
 
       if (!url.exists(downloadURL)) {
         removeModal()
@@ -727,9 +725,9 @@ server <- function(input, output, session) {
   # * Edit Data ---------------------------------------------------------------
   
   output$selectedOntology <- renderUI({
-    OntologyLstAcr <- strsplit(values$ontName, " ")
-    values$OntologyAcronym <<- OntologyLstAcr[[1]][1]
-    urlToOpen <- paste0("https://bioportal.bioontology.org/ontologies/",values$OntologyAcronym)
+    ontologyLstAcr <- strsplit(values$ontName, " ")
+    values$ontologyAcronym <<- ontologyLstAcr[[1]][1]
+    urlToOpen <- paste0("https://bioportal.bioontology.org/ontologies/",values$ontologyAcronym)
     HTML(paste("<b>Selected Ontology: </b>",  (a(href = urlToOpen, values$ontName)), collapse="<BR>"))
   })
   
@@ -738,7 +736,7 @@ server <- function(input, output, session) {
     
     content <- tagList()
     content[[1]] <- selectizeInput('newOntologySelector', label = "Select new Ontology:", 
-                                   choices = list('Recommended Ontologies' = c("", values$RecommendedOntologies),
+                                   choices = list('Recommended Ontologies' = c("", values$recommendedOntologies),
                                                   'All Ontologies' = listOfOntNames),
                                    options = list(
                                      placeholder = "Please choose terms above...",
@@ -789,7 +787,7 @@ server <- function(input, output, session) {
         uniqueTerms <<- unique(values$dataset[[input$editThisColumn]])
         uniqueTerms <- paste(unlist(uniqueTerms), collapse = ' ')
         sURL <<- sprintf("http://data.bioontology.org/annotator?text=%s&apikey=%s",gsub(" ", "", URLencode(uniqueTerms, reserved = TRUE)), API_KEY)
-        sURL <<- paste0(sURL, "&ontologies=",values$OntologyAcronym, "&display_links=false&display_context=false&include=prefLabel")
+        sURL <<- paste0(sURL, "&ontologies=",values$ontologyAcronym, "&display_links=false&display_context=false&include=prefLabel")
         
         # Make a data frame from the JSON generated by Annotator (with a timer for timeout)
         if (url.exists(sURL) == TRUE) {
@@ -797,55 +795,55 @@ server <- function(input, output, session) {
             res <- R.utils::withTimeout(  {
               incProgress(.1)
               RDFFile <<- getURL(sURL)
-              DataFrameAnnotator <- RJSONIO::fromJSON(sURL)}, timeout = TIMEOUT_TIME)
+              dataFrameAnnotator <- RJSONIO::fromJSON(sURL)}, timeout = TIMEOUT_TIME)
           }, TimeoutException = function(ex) {
             timeOutError()
           })
           
-          AutoMatchdf <- as.data.frame(t(sapply(DataFrameAnnotator,c)))
+          autoMatchDF <- as.data.frame(t(sapply(dataFrameAnnotator,c)))
           myDF <- data.frame("Current Term" = NA, "Standardized Term" = NA, "Accept" = TRUE, check.names = FALSE)
           
-          n <- nrow(AutoMatchdf) + 2
+          n <- nrow(autoMatchDF) + 2
           # Loop through the dataframe (df) and extract Standardized and Current Names
-          for (i in 1:nrow(AutoMatchdf)){
+          for (i in 1:nrow(autoMatchDF)){
             incProgress(1/n)
-            StandardName <- unlist(lapply(AutoMatchdf[i, 1], function(l) l[[1]]), recursive = FALSE) #grab the standardized name
-            CurrentName <- unlist(unlist(AutoMatchdf[i,3], recursive=FALSE), recursive = FALSE)
-            myListofCurrentNames <- unique(CurrentName[grepl("text", names(CurrentName))])
-            myListofCurrentNames <- stringi::stri_trans_totitle(myListofCurrentNames)
+            standardName <- unlist(lapply(autoMatchDF[i, 1], function(l) l[[1]]), recursive = FALSE) #grab the standardized name
+            currentName <- unlist(unlist(autoMatchDF[i,3], recursive=FALSE), recursive = FALSE)
+            myListOfcurrentNames <- unique(currentName[grepl("text", names(currentName))])
+            myListOfcurrentNames <- stringi::stri_trans_totitle(myListOfcurrentNames)
             
             #Check to make sure there are names to standardize
-            if(is.na(myListofCurrentNames[1])){
+            if(is.na(myListOfcurrentNames[1])){
               break;
             }
             
-            #Sometimes bioportal checks and returns substrings of elements. If this is the case, this conditional changes the substring back to it's full form
-            if (length(myListofCurrentNames) != 0 || is.na(pmatch(tolower(myListofCurrentNames), tolower(values$dataset[[input$editThisColumn]]))) == FALSE) {
-              index <- pmatch(tolower(myListofCurrentNames), tolower(values$dataset[[input$editThisColumn]]))
-              myListofCurrentNames = values$dataset[[input$editThisColumn]][index]
+            #Sometimes bioportal checks and returns substrings of elements. If this is the case, this conditional changes the substring back to its full form
+            if (length(myListOfcurrentNames) != 0 || is.na(pmatch(tolower(myListOfcurrentNames), tolower(values$dataset[[input$editThisColumn]]))) == FALSE) {
+              index <- pmatch(tolower(myListOfcurrentNames), tolower(values$dataset[[input$editThisColumn]]))
+              myListOfcurrentNames = values$dataset[[input$editThisColumn]][index]
             }
             
-            # If the term is already in the data frame, don't add it (must come after the code above) Maybe later, let the user pick which term they would rather pick
-            if(myListofCurrentNames[1] %in% myDF[,1]){
+            # If the term is already in the data frame, don't add it (must come after the code above). Maybe later, let the user pick which term they would rather pick
+            if(myListOfcurrentNames[1] %in% myDF[,1]){
               next;
             }
             
-            if(StandardName == "" || is.na(StandardName)){
+            if(standardName == "" || is.na(standardName)){
               next;
             } 
             
-            if (length(myListofCurrentNames) > 1){
-              lapply(myListofCurrentNames, function(x) {
+            if (length(myListOfcurrentNames) > 1){
+              lapply(myListOfcurrentNames, function(x) {
                 if(!is.na(x)){
-                  if (x != StandardName){
-                    myDF <<- rbind(myDF, list(x, StandardName, TRUE)) 
+                  if (x != standardName){
+                    myDF <<- rbind(myDF, list(x, standardName, TRUE)) 
                   }
                 }
               })
             }
             else{
-              if (myListofCurrentNames != StandardName){
-                myDF <- rbind(myDF, list(myListofCurrentNames, stringi::stri_trans_totitle(StandardName), TRUE), stringsAsFactors = FALSE)
+              if (myListOfcurrentNames != standardName){
+                myDF <- rbind(myDF, list(myListOfcurrentNames, stringi::stri_trans_totitle(standardName), TRUE), stringsAsFactors = FALSE)
               }
             }
           }
@@ -855,7 +853,7 @@ server <- function(input, output, session) {
           values$myDF <- myDF[order(myDF$`Standardized Term`),]
           
           # Output the table
-          if (length(AutoMatchdf) > 0) {
+          if (length(autoMatchDF) > 0) {
             
             if (length(myDF) > 0) {
               content <- tagList()
@@ -978,11 +976,11 @@ server <- function(input, output, session) {
       # Change dataset table values to reflect changes made by editor
       values$lastSelectedEditColumn <- input$editThisColumn
       accepted <- values$myDF[,3]
-      accepted_list <- values$myDF$'Standardized Term'[accepted]
+      acceptedList <- values$myDF$'Standardized Term'[accepted]
       
-      # the if statement checks to make sure that at least 1 term has been selected to save. Else, don't change any terms.
-      if(length(accepted_list) > 0 ) {
-        names(accepted_list) <- paste0("^", values$myDF$`Current Term`[accepted], "$")
+      # The if statement checks to make sure that at least 1 term has been selected to save. Else, don't change any terms.
+      if(length(acceptedList) > 0 ) {
+        names(acceptedList) <- paste0("^", values$myDF$`Current Term`[accepted], "$")
         columnNameOfChangedTerms <- input$editThisColumn #The column from the actual datasheet that is to be changed
         datasetInput <- values$dataset
         
@@ -990,10 +988,10 @@ server <- function(input, output, session) {
         # It also changes the values in the dataset to their corrected value (if it was checked)
         names <- paste0("^", values$myDF$`Current Term`[accepted], "$")
         masterText <<- paste0(masterText, "\n\n# Changing the dataset based on AutoMatch\n", "columnNameOfChangedTerms <- \"", columnNameOfChangedTerms, 
-                              "\"\n", "accepted_list <- c(", paste0("'", unname(accepted_list), "'", collapse = ", "), ")",
-                              "\n","names_accepted_list <- c(", paste0("'", names, "'", collapse=", "), ")",
-                              "\nnames(accepted_list) <- names_accepted_list")
-        txt <- "datasetInput[[columnNameOfChangedTerms]] <- str_replace_all(datasetInput[[columnNameOfChangedTerms]], accepted_list)"
+                              "\"\n", "acceptedList <- c(", paste0("'", unname(acceptedList), "'", collapse = ", "), ")",
+                              "\n","namesAcceptedList <- c(", paste0("'", names, "'", collapse=", "), ")",
+                              "\nnames(acceptedList) <- namesAcceptedList")
+        txt <- "datasetInput[[columnNameOfChangedTerms]] <- str_replace_all(datasetInput[[columnNameOfChangedTerms]], acceptedList)"
         eval(parse(text = txt))
         values$dataset <- datasetInput
         masterText <<- paste0(masterText, "\n", txt)
@@ -1012,11 +1010,11 @@ server <- function(input, output, session) {
   standardizeManually <- function() {
     newData <- if (is.null(input$newData) || input$newData == "") NA else input$newData
     editThisColumn <- gsub("\"", "\\\\\"", input$editThisColumn)
-    m <- length(input$editData)
+    numItems <- length(input$editData)
     withProgress(message = "Standardizing", {
       values$lastSelectedEditColumn <- input$editThisColumn
       for (item in input$editData) {
-        incProgress(1/m, detail = item)
+        incProgress(1/numItems, detail = item)
         datasetInput <- values$dataset
         txt <- paste0("datasetInput[[editThisColumn]][datasetInput[[editThisColumn]] == \"", item, "\"] <- \"", newData, "\"")
         eval(parse(text = txt))
@@ -1052,7 +1050,7 @@ server <- function(input, output, session) {
   observeEvent(input$manual, {
     withProgress(message = "Getting Manual Standardization ready", value = 0, {
       incProgress(0.7)
-      downloadURL <- sprintf(paste("http://data.bioontology.org/ontologies/", values$OntologyAcronym, "/download?download_format=csv&display_links=false&apikey=", API_KEY, sep=""))
+      downloadURL <- sprintf(paste("http://data.bioontology.org/ontologies/", values$ontologyAcronym, "/download?download_format=csv&display_links=false&apikey=", API_KEY, sep=""))
       title <- "Manual Standardization"
       content <- tagList()
       content[[1]] <- p(
@@ -1099,7 +1097,7 @@ server <- function(input, output, session) {
     # Recommender(recommend three terms)
     myList <- paste0(unlist(input$editData), collapse = ', ')
     recommendedTerms <- URLencode(myList, reserved = TRUE)
-    annURL <- sprintf("http://data.bioontology.org/annotator?text=%s&ontologies=%s&apikey=%s&display_links=false&exclude_synonyms=false&display_context=false&include=prefLabel", recommendedTerms,values$OntologyAcronym, API_KEY)
+    annURL <- sprintf("http://data.bioontology.org/annotator?text=%s&ontologies=%s&apikey=%s&display_links=false&exclude_synonyms=false&display_context=false&include=prefLabel", recommendedTerms,values$ontologyAcronym, API_KEY)
     
     values$recTermsList <<- NULL
     if (url.exists(annURL) == TRUE) {
@@ -1190,19 +1188,6 @@ server <- function(input, output, session) {
                    options = list(placeholder = "Select a term or start typing..."))
   })
   
-  # Use a bounding variable to make sure we only get the suggestions when we need them.
-  getSuggestions <- function(toFind, boundingVar = "TRUE") {
-    allSuggestions <- c("i", "k")
-    
-    if (eval(parse(text = boundingVar))) {
-      if (length(allSuggestions) > 0) {
-        list('All Terms from the Selected Ontology' = TOTAL_TERM_LIST) 
-      } else {
-        list("All Terms from the Selected Ontology" = TOTAL_TERM_LIST)
-      }
-    }
-  }
-  
   # Manual Listeners 
   observeEvent(input$saveConfirmContinue, {
     toggleModal(session, "saveConfirm", toggle = "close")
@@ -1224,8 +1209,8 @@ server <- function(input, output, session) {
   observeEvent(input$resetAndSave, {
     shinyjs::reset('manual')
     values$ontName <<- input$newOntologySelector
-    OntologyLstAcr <- strsplit(input$newOntologySelector, " ")
-    values$OntologyAcronym <<- OntologyLstAcr[[1]][1]
+    ontologyLstAcr <- strsplit(input$newOntologySelector, " ")
+    values$ontologyAcronym <<- ontologyLstAcr[[1]][1]
     updateSelectizeInput(session, 'ontologySelector', selected = values$ontName) #This updates the first drop down menu with your new selection
     
     showModal(modalDialog(title = "Loading New Ontology.",
@@ -1233,7 +1218,7 @@ server <- function(input, output, session) {
                           shinycssloaders::withSpinner(" ", type = SPINNER_TYPE, proxy.height = "150px"),
                           footer = NULL,
                           easyClose = F))
-    downloadURL <- sprintf(paste("http://data.bioontology.org/ontologies/", values$OntologyAcronym, "/download?download_format=csv&display_links=false&apikey=", API_KEY, sep=""))
+    downloadURL <- sprintf(paste("http://data.bioontology.org/ontologies/", values$ontologyAcronym, "/download?download_format=csv&display_links=false&apikey=", API_KEY, sep=""))
     
     if (!url.exists(downloadURL)) { ## THE ONTOLOGY IS LOCKED FOR DOWNLOAD
       removeModal()
@@ -1244,7 +1229,6 @@ server <- function(input, output, session) {
   })
   
   observeEvent(input$manualClose, {
-    #toggleModal(session, "saveConfirm", toggle = "close") I don't know why this has to be commented out, but when it's commented out the app works
     removeModal()
   }, ignoreInit = T)
   
@@ -1316,18 +1300,18 @@ server <- function(input, output, session) {
       if (url.exists(aURL) == TRUE) {
         tryCatch({
           res <- R.utils::withTimeout(  {
-            DataFrameAnnotator <- RJSONIO::fromJSON(aURL)
+            dataFrameAnnotator <- RJSONIO::fromJSON(aURL)
           },  timeout = TIMEOUT_TIME)
         }, TimeoutException = function(ex) {
           timeOutError()
         })
-        newColNamesdf <- as.data.frame(t(sapply(DataFrameAnnotator,c)))
+        newColNamesDF <- as.data.frame(t(sapply(dataFrameAnnotator,c)))
         myDF <- data.frame("Current Term" = NA, "Standardized Term" = NA, "Accept" = TRUE, check.names = FALSE)
         
         # Loop through the dataframe (df) and extract the new recommended column names
         for (i in 1:3){
-          StandardName <- unlist(lapply(newColNamesdf[i, 1], function(l) l[[1]]), recursive = FALSE) #grab the standardized name
-          newColNames <- append(newColNames, stringi::stri_trans_totitle(StandardName))
+          standardName <- unlist(lapply(newColNamesDF[i, 1], function(l) l[[1]]), recursive = FALSE) #grab the standardized name
+          newColNames <- append(newColNames, stringi::stri_trans_totitle(standardName))
         }
       }
       removeModal()
@@ -1429,13 +1413,13 @@ server <- function(input, output, session) {
   output$editReport <- downloadHandler(
     filename = function() {
       fileName <- if (input$outputFileName == "") "shiny_output" else input$outputFileName
-      this_extension <- if (nchar(input$extension) == 0) extension() else input$extension
-      return(paste0(fileName, this_extension))
+      thisExtension <- if (nchar(input$extension) == 0) extension() else input$extension
+      return(paste0(fileName, thisExtension))
     }, 
     content = function(file) {
-      this_extension <- if (nchar(input$extension) == 0) extension() else input$extension
-      to_write <- if (grepl("xls", this_extension)) "xlsx" else extensionsMap[[this_extension]]
-      return(do.call(paste0("write_", to_write), list(values$dataset, file, "col_names" = (input$header != "0"))))
+      thisExtension <- if (nchar(input$extension) == 0) extension() else input$extension
+      toWrite <- if (grepl("xls", thisExtension)) "xlsx" else extensionsMap[[thisExtension]]
+      return(do.call(paste0("write_", toWrite), list(values$dataset, file, "col_names" = (input$header != "0"))))
     }
   )
   
@@ -1445,18 +1429,18 @@ server <- function(input, output, session) {
       paste0(input$outputFileName, "_R_script.R")
     }, content = function(file) {
       fileName <- if (input$outputFileName == "") "shiny_output" else input$outputFileName
-      this_extension <- if (nchar(input$extension) == 0) extension() else input$extension
+      thisExtension <- if (nchar(input$extension) == 0) extension() else input$extension
       fullFileName <- paste0(fileName, ".R")
       
-      to_write <- if (grepl("xls", this_extension)) {
+      toWrite <- if (grepl("xls", thisExtension)) {
         "xlsx"
       } else {
         listOfLibrariesUsed <<- listOfLibrariesUsed[!str_detect(listOfLibrariesUsed, "writexl")]
-        extensionsMap[[this_extension]]
+        extensionsMap[[thisExtension]]
       }
       masterText <<- paste0(masterText, "\n", "\n# Save File\n",
-                            "file <- '", paste0(input$outputFileName, this_extension),
-                            "'\n", paste0("write_", substring(this_extension, 2)), "(datasetInput, file)",
+                            "file <- '", paste0(input$outputFileName, thisExtension),
+                            "'\n", paste0("write_", substring(thisExtension, 2)), "(datasetInput, file)",
                             "\nprint('Your file has been successfully saved and modified with the name: ",input$outputFileName, "')")
       write.table(masterText, file, row.names = F, col.names = F, quote = F)
       showNotification(paste0("Your file was successfully saved."))
