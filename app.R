@@ -46,7 +46,7 @@ TIMEOUT_TIME <- 120 # Seconds
 listOfLibrariesUsed <- c("DT", "RCurl", "rhandsontable", "rjson", "shiny", "shinyBS", "shinycssloaders", "shinyjs",
                             "tidyverse", "tools", "writexl")
 
-#define function for tooltips 
+# Define function for tooltips 
 helpButton <- function(message = "content", placement = "right") {
   return(tipify(icon("question-circle"), title = message, placement = placement, trigger = "hover"))
 }
@@ -70,7 +70,7 @@ collapseText <- function(inputList) {
   paste(paste(inputList[-1 * lastIndex], collapse = ", "), inputList[lastIndex], sep = ", and ")
 }
 
-getRecommendedTerms <- function(dataSet) {  # Get a list of terms to standardize
+getRecommendedTerms <- function(dataSet) {# Get a list of terms to standardize
   sampleRows  <- sample_n(dataSet, min(NUM_SAMPLE_ROWS, nrow(dataSet)))
   rowChar <- toString(unlist(unique(unlist(sampleRows, use.names = FALSE)))) # Change sample table to one string
   rowChar <- URLencode(rowChar, reserved = TRUE) #Why encode? Characters in a URL other than the English alphanumeric characters and - _ . ~ should be encoded as % plus a two-digit hexadecimal representation, and any single-byte character can be so encoded. The standard refers to this as 'percent-encoding'.
@@ -269,7 +269,7 @@ server <- function(input, output, session) {
   # Reactive Values
   values <- reactiveValues(datasetInput = NULL, dataset = NULL, 
                            extension = "", terminology = NULL, lastSelectedEditColumn = "", viewingSubset = c(1, 5),
-                           myDF = NULL, ontologyAcronym = "",
+                           informationDataFrame = NULL, ontologyAcronym = "",
                            recommendedOntologies = NULL, listOfOntNames = NULL, ontName = "", TOTAL_TERM_LIST = NULL,
                            recTermsList = NULL, deselectedPushed = FALSE,
                            selectedPushed = FALSE, numTimesClicked = 0)
@@ -515,16 +515,16 @@ server <- function(input, output, session) {
           diffNum <- as.numeric(dateDif)
           
           # If needed, download full ontology list from BioPortal. Else, read file
-          myContent <- NULL
+          bioportalOntologies <- NULL
           if (diffNum > DAYS_SINCE_DOWNLOAD) { 
             tryCatch({
               res <- R.utils::withTimeout({
-                myContent <- RJSONIO::fromJSON(paste0("http://data.bioontology.org/ontologies?apikey=", API_KEY))
+                bioportalOntologies <- RJSONIO::fromJSON(paste0("http://data.bioontology.org/ontologies?apikey=", API_KEY))
               }, timeout = TIMEOUT_TIME)
             }, TimeoutException = function(ex) {
               timeOutError()
             }, finally = {
-              if (is.null(myContent)) {
+              if (is.null(bioportalOntologies)) {
                 removeModal()
                 showModal(modalDialog(title = "BioPortal Unavailable for Access",
                                       p("BioPortal seems to be down, please check ",
@@ -534,13 +534,13 @@ server <- function(input, output, session) {
               }
             })
             
-            contentDataFrame <- data.frame(t(sapply(myContent,c)))
-            contentDataFrame$nameAndAcronymn = paste(contentDataFrame$acronym, contentDataFrame$name) #Makes a column with both acronym and name
-            listOfOntNames <<- contentDataFrame[, ncol(contentDataFrame)] # This accesses the last column of the dateframe
+            bioportalOntologiesDataFrame <- data.frame(t(sapply(bioportalOntologies,c)))
+            bioportalOntologiesDataFrame$nameAndAcronymn = paste(bioportalOntologiesDataFrame$acronym, bioportalOntologiesDataFrame$name) # Makes a column with both acronym and name
+            listOfOntNames <<- bioportalOntologiesDataFrame[, ncol(bioportalOntologiesDataFrame)] # This accesses the last column of the dateframe
             write.table(listOfOntNames, file = ONTOLOGY_LIST_FILE_PATH, append = FALSE, quote = FALSE,
                         row.names = FALSE, col.names = FALSE)
           }
-          else{
+          else {
             listOfOntNames <- readLines(ONTOLOGY_LIST_FILE_PATH)
             listOfOntNames <<- lapply(listOfOntNames, noquote)
           }
@@ -593,7 +593,7 @@ server <- function(input, output, session) {
                 thisTerm <- filter(ontologyTibble, Acronym == recommendedOntologies[i]) %>% select(FullName)
                 recommendedOntologies <- replace(recommendedOntologies, i, paste(recommendedOntologies[i], unlist(unname(thisTerm)), " ", collapse = " "))
               }
-            } else{
+            } else {
               recommendedOntologies <<- ""
             }
           }
@@ -680,8 +680,8 @@ server <- function(input, output, session) {
         tryCatch({
           res <- R.utils::withTimeout(  {
             tmpFilePath <- paste0(tempfile(), ".csv.gz")
-            myFile <- download.file(downloadURL, tmpFilePath, quiet = FALSE, mode = "wb")
-            myFile <- suppressMessages(suppressWarnings(read_csv(tmpFilePath)))
+            ontologyFile <- download.file(downloadURL, tmpFilePath, quiet = FALSE, mode = "wb")
+            ontologyFile <- suppressMessages(suppressWarnings(read_csv(tmpFilePath)))
             unlink(tmpFilePath)
           },  timeout = TIMEOUT_TIME)
         }, TimeoutException = function(ex) {
@@ -689,16 +689,16 @@ server <- function(input, output, session) {
         })
         
         # Format column names to retrieve a list of preferred names stored in the ontology
-        colnames(myFile) <- sub("_", " ", colnames(myFile))
-        colnames(myFile) <- tolower(colnames(myFile))
-        myFile <- myFile[, !duplicated(colnames(myFile))] # This was added because the MEDO ontology had duplicate columns and wouldn't pull the preferred name because of it
+        colnames(ontologyFile) <- sub("_", " ", colnames(ontologyFile))
+        colnames(ontologyFile) <- tolower(colnames(ontologyFile))
+        ontologyFile <- ontologyFile[, !duplicated(colnames(ontologyFile))] # This was added because the MEDO ontology had duplicate columns and wouldn't pull the preferred name because of it
         # There are a few options of what the preferred name can be such as "preferred name" and "label"
-        if ("preferred name" %in% colnames(myFile)) {
-          values$TOTAL_TERM_LIST <- sort(pull(myFile, var = "preferred name"))
-        } else if ("label" %in% colnames(myFile)) {
-          values$TOTAL_TERM_LIST <- sort(pull(myFile, var = "label"))
+        if ("preferred name" %in% colnames(ontologyFile)) {
+          values$TOTAL_TERM_LIST <- sort(pull(ontologyFile, var = "preferred name"))
+        } else if ("label" %in% colnames(ontologyFile)) {
+          values$TOTAL_TERM_LIST <- sort(pull(ontologyFile, var = "label"))
         } else {
-          values$TOTAL_TERM_LIST <- sort(pull(myFile, var = "preferred label"))
+          values$TOTAL_TERM_LIST <- sort(pull(ontologyFile, var = "preferred label"))
         }
         # TODO make an error message to show them inconsistencies in downloaded data
         write.table(values$TOTAL_TERM_LIST, file = ontFileName, append = FALSE, quote = FALSE,
@@ -707,9 +707,9 @@ server <- function(input, output, session) {
         updateTabsetPanel(session, 'tabs', selected = 'editTable')
       }
     } else {
-      myList <- readLines(ontFileName)
-      myList <- unlist(lapply(myList, noquote))
-      values$TOTAL_TERM_LIST <<- myList
+      ontologyTerms <- readLines(ontFileName)
+      ontologyTerms <- unlist(lapply(ontologyTerms, noquote))
+      values$TOTAL_TERM_LIST <<- ontologyTerms
       removeModal()
       updateTabsetPanel(session, 'tabs', selected = 'editTable')
     }
@@ -793,7 +793,7 @@ server <- function(input, output, session) {
           })
           
           autoMatchDF <- as.data.frame(t(sapply(dataFrameAnnotator,c)))
-          myDF <- data.frame("Current Term" = NA, "Standardized Term" = NA, "Accept" = TRUE, check.names = FALSE)
+          informationDataFrame <- data.frame("Current Term" = NA, "Standardized Term" = NA, "Accept" = TRUE, check.names = FALSE)
           
           n <- nrow(autoMatchDF) + 2
           # Loop through the dataframe (df) and extract Standardized and Current Names
@@ -801,22 +801,22 @@ server <- function(input, output, session) {
             incProgress(1/n)
             standardName <- unlist(lapply(autoMatchDF[i, 1], function(l) l[[1]]), recursive = FALSE) #grab the standardized name
             currentName <- unlist(unlist(autoMatchDF[i,3], recursive = FALSE), recursive = FALSE)
-            myListOfcurrentNames <- unique(currentName[grepl("text", names(currentName))])
-            myListOfcurrentNames <- stringi::stri_trans_totitle(myListOfcurrentNames)
+            currentNamesList <- unique(currentName[grepl("text", names(currentName))])
+            currentNamesList <- stringi::stri_trans_totitle(currentNamesList)
             
             # Check to make sure there are names to standardize
-            if (is.na(myListOfcurrentNames[1])) {
+            if (is.na(currentNamesList[1])) {
               break;
             }
             
             # Sometimes bioportal checks and returns substrings of elements. If this is the case, this conditional changes the substring back to its full form
-            if (length(myListOfcurrentNames) != 0 || is.na(pmatch(tolower(myListOfcurrentNames), tolower(values$dataset[[input$editThisColumn]]))) == FALSE) {
-              index <- pmatch(tolower(myListOfcurrentNames), tolower(values$dataset[[input$editThisColumn]]))
-              myListOfcurrentNames = values$dataset[[input$editThisColumn]][index]
+            if (length(currentNamesList) != 0 || is.na(pmatch(tolower(currentNamesList), tolower(values$dataset[[input$editThisColumn]]))) == FALSE) {
+              index <- pmatch(tolower(currentNamesList), tolower(values$dataset[[input$editThisColumn]]))
+              currentNamesList = values$dataset[[input$editThisColumn]][index]
             }
             
             # If the term is already in the data frame, don't add it (must come after the code above). Maybe later, let the user pick which term they would rather pick
-            if (myListOfcurrentNames[1] %in% myDF[,1]) {
+            if (currentNamesList[1] %in% informationDataFrame[,1]) {
               next;
             }
             
@@ -824,30 +824,30 @@ server <- function(input, output, session) {
               next;
             } 
             
-            if (length(myListOfcurrentNames) > 1) {
-              lapply(myListOfcurrentNames, function(x) {
+            if (length(currentNamesList) > 1) {
+              lapply(currentNamesList, function(x) {
                 if (!is.na(x)) {
                   if (x != standardName) {
-                    myDF <<- rbind(myDF, list(x, standardName, TRUE)) 
+                    informationDataFrame <<- rbind(informationDataFrame, list(x, standardName, TRUE)) 
                   }
                 }
               })
             }
             else {
-              if (myListOfcurrentNames != standardName) {
-                myDF <- rbind(myDF, list(myListOfcurrentNames, stringi::stri_trans_totitle(standardName), TRUE), stringsAsFactors = FALSE)
+              if (currentNamesList != standardName) {
+                informationDataFrame <- rbind(informationDataFrame, list(currentNamesList, stringi::stri_trans_totitle(standardName), TRUE), stringsAsFactors = FALSE)
               }
             }
           }
-          myDF <- myDF[-1,] # There is a random column made in the last step so this strips that back down
-          values$myDF <- myDF[!(myDF$`Current Term` == myDF$`Standardized Term`),]
+          informationDataFrame <- informationDataFrame[-1,] # There is a random column made in the last step so this strips that back down
+          values$informationDataFrame <- informationDataFrame[!(informationDataFrame$`Current Term` == informationDataFrame$`Standardized Term`),]
           # Sort the table alphabetically
-          values$myDF <- myDF[order(myDF$`Standardized Term`),]
+          values$informationDataFrame <- informationDataFrame[order(informationDataFrame$`Standardized Term`),]
           
           # Output the table
           if (length(autoMatchDF) > 0) {
             
-            if (length(myDF) > 0) {
+            if (length(informationDataFrame) > 0) {
               content <- tagList()
               content[[1]] <- p(
                 paste(
@@ -876,7 +876,7 @@ server <- function(input, output, session) {
             content <- p("The terms in this column are already standardized or there were no terms to standardize.")
           }
         }
-        else{
+        else {
           content <- p("Server Error 404: Automatch couldn't generate. Try using a smaller file or just using manual selection.")
         }
       }
@@ -902,13 +902,13 @@ server <- function(input, output, session) {
   
   # ** ** Auto-match Supporting Events
   observeEvent(input$selectAll,{
-    values$myDF[,3] <- rep(TRUE, nrow(values$myDF))
+    values$informationDataFrame[,3] <- rep(TRUE, nrow(values$informationDataFrame))
     values$selectedPushed <- TRUE
     renderAutoMatchTable()
   })
   
   observeEvent(input$deselectAll,  {
-    values$myDF[,3] <- rep(FALSE, nrow(values$myDF))
+    values$informationDataFrame[,3] <- rep(FALSE, nrow(values$informationDataFrame))
     values$deselectedPushed <- TRUE
     renderAutoMatchTable()
   })
@@ -923,8 +923,8 @@ server <- function(input, output, session) {
             column(width = 2, h4("Accept?"))
           )
         ),
-        lapply(1:nrow(values$myDF), function(i) {
-          autoMatchModule(values$myDF[i,1], values$myDF[i,2], values$myDF[i,3])
+        lapply(1:nrow(values$informationDataFrame), function(i) {
+          autoMatchModule(values$informationDataFrame[i,1], values$informationDataFrame[i,2], values$informationDataFrame[i,3])
         }),
       )
     })
@@ -935,9 +935,9 @@ server <- function(input, output, session) {
     observeEvent(input$checkBox, {
       if (values$deselectedPushed == FALSE && values$selectedPushed == FALSE) {
         if (input$checkBox == FALSE) {
-          values$myDF[modID,3] <- FALSE
+          values$informationDataFrame[modID,3] <- FALSE
         } else if (input$checkBox == TRUE) {
-          values$myDF[modID,3] <- TRUE
+          values$informationDataFrame[modID,3] <- TRUE
         }
       } else {
         values$numTimesClicked = values$numTimesClicked + 1
@@ -946,16 +946,16 @@ server <- function(input, output, session) {
     
     # This generates the automatch table Module and connects the listener (see automatchTableListener)
     observe({
-      if (!is.null(values$myDF)) {
-        lapply(1:nrow(values$myDF), function(i) {
-          callModule(automatchTableListener, values$myDF[i,1],i)
+      if (!is.null(values$informationDataFrame)) {
+        lapply(1:nrow(values$informationDataFrame), function(i) {
+          callModule(automatchTableListener, values$informationDataFrame[i,1],i)
         })
       }
     })
     
     # Listener to control the select all and deselect all button
     observe({
-      if (values$numTimesClicked >= nrow(values$myDF)) {
+      if (values$numTimesClicked >= nrow(values$informationDataFrame)) {
         values$numTimesClicked <- 0
         values$selectedPushed = FALSE
         values$deselectedPushed = FALSE
@@ -965,21 +965,21 @@ server <- function(input, output, session) {
   
   # ** ** Auto-match Save 
   observeEvent(input$automatchSave, ignoreInit = T, {
-    if (length(which(values$myDF[,3])) > 0) {
+    if (length(which(values$informationDataFrame[,3])) > 0) {
       # Change dataset table values to reflect changes made by editor
       values$lastSelectedEditColumn <- input$editThisColumn
-      accepted <- values$myDF[,3]
-      acceptedList <- values$myDF$'Standardized Term'[accepted]
+      accepted <- values$informationDataFrame[,3]
+      acceptedList <- values$informationDataFrame$'Standardized Term'[accepted]
       
       # The if statement checks to make sure that at least 1 term has been selected to save. Else, don't change any terms.
       if (length(acceptedList) > 0 ) {
-        names(acceptedList) <- paste0("^", values$myDF$`Current Term`[accepted], "$")
+        names(acceptedList) <- paste0("^", values$informationDataFrame$`Current Term`[accepted], "$")
         columnNameOfChangedTerms <- input$editThisColumn #The column from the actual datasheet that is to be changed
         datasetInput <- values$dataset
         
         # This tells the R Script which terms we want to change and what we want to change them to
         # It also changes the values in the dataset to their corrected value (if it was checked)
-        names <- paste0("^", values$myDF$`Current Term`[accepted], "$")
+        names <- paste0("^", values$informationDataFrame$`Current Term`[accepted], "$")
         masterText <<- paste0(masterText, "\n\n# Changing the dataset based on AutoMatch\n", "columnNameOfChangedTerms <- \"", columnNameOfChangedTerms, 
                               "\"\n", "acceptedList <- c(", paste0("'", unname(acceptedList), "'", collapse = ", "), ")",
                               "\n","namesAcceptedList <- c(", paste0("'", names, "'", collapse = ", "), ")",
@@ -1088,20 +1088,20 @@ server <- function(input, output, session) {
                           easyClose = F))
     
     # Recommender (recommend three terms)
-    myList <- paste0(unlist(input$editData), collapse = ', ')
-    recommendedTerms <- URLencode(myList, reserved = TRUE)
+    termsToStandardizeManually <- paste0(unlist(input$editData), collapse = ', ')
+    recommendedTerms <- URLencode(termsToStandardizeManually, reserved = TRUE)
     annURL <- sprintf("http://data.bioontology.org/annotator?text=%s&ontologies=%s&apikey=%s&display_links=false&exclude_synonyms=false&display_context=false&include=prefLabel", recommendedTerms,values$ontologyAcronym, API_KEY)
     
     values$recTermsList <<- NULL
     if (url.exists(annURL) == TRUE) {
       tryCatch({
         res <- R.utils::withTimeout(  {
-          DataFrameAnn <- jsonlite::fromJSON(annURL)
+          annDataFrame <- jsonlite::fromJSON(annURL)
         },  timeout = TIMEOUT_TIME)
       }, TimeoutException = function(ex) {
         timeOutError()
       })
-      frequencyTable <- table(DataFrameAnn$annotatedClass$prefLabel) #convert this list to a frequency table
+      frequencyTable <- table(annDataFrame$annotatedClass$prefLabel) # Convert this list to a frequency table
       frequencyTable <- frequencyTable[order(frequencyTable, decreasing = T)]
       
       if (NUM_REC_MANUAL > length(frequencyTable)) {
@@ -1129,7 +1129,7 @@ server <- function(input, output, session) {
       )
     )
     content[[2]] <- br()
-    content[[3]] <- HTML(paste('Terms that you selected with a common meaning: ', myList))
+    content[[3]] <- HTML(paste('Terms that you selected with a common meaning: ', termsToStandardizeManually))
     content[[4]] <- br()
     content[[5]] <- br()
     content[[6]] <- conditionalPanel(
@@ -1216,7 +1216,7 @@ server <- function(input, output, session) {
     if (!url.exists(downloadURL)) { # THE ONTOLOGY IS LOCKED FOR DOWNLOAD
       removeModal()
       lockedOntologyError()
-    } else{
+    } else {
       removeModal()
     }
   })
@@ -1299,7 +1299,7 @@ server <- function(input, output, session) {
           timeOutError()
         })
         newColNamesDF <- as.data.frame(t(sapply(dataFrameAnnotator,c)))
-        myDF <- data.frame("Current Term" = NA, "Standardized Term" = NA, "Accept" = TRUE, check.names = FALSE)
+        informationDataFrame <- data.frame("Current Term" = NA, "Standardized Term" = NA, "Accept" = TRUE, check.names = FALSE)
         
         # Loop through the dataframe (df) and extract the new recommended column names
         for (i in 1:3) {
