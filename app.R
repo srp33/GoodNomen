@@ -162,6 +162,7 @@ ui <- fluidPage(
                                                       actionButton('manual', label = div("Standardize Manually", helpButton("Update selected terms to manually chosen standardized term.")))
                                                     )),
                                    uiOutput("resetAndSave"), hr(),
+                                   uiOutput("cancelChangeOntology"), hr(),
                                    div(
                                      actionButton('editBack', "Back", css.class = "back_button"),
                                      actionButton('editNext', "Next", css.class = "next_button"))
@@ -536,7 +537,7 @@ server <- function(input, output, session) {
             
             bioportalOntologiesDataFrame <- data.frame(t(sapply(bioportalOntologies,c)))
             bioportalOntologiesDataFrame$nameAndAcronymn = paste(bioportalOntologiesDataFrame$acronym, bioportalOntologiesDataFrame$name) # Makes a column with both acronym and name
-            listOfOntNames <<- bioportalOntologiesDataFrame[, ncol(bioportalOntologiesDataFrame)] # This accesses the last column of the dateframe
+            listOfOntNames <<- bioportalOntologiesDataFrame[, ncol(bioportalOntologiesDataFrame)] # This accesses the last column of the dataframe
             write.table(listOfOntNames, file = ONTOLOGY_LIST_FILE_PATH, append = FALSE, quote = FALSE,
                         row.names = FALSE, col.names = FALSE)
           }
@@ -735,6 +736,7 @@ server <- function(input, output, session) {
                                      placeholder = "Please choose terms above...",
                                      closeAfterSelect = TRUE))
     content[[3]] <- actionButton('resetAndSave', label = "Save and Reset Ontology")
+    content[[4]] <- actionButton('cancelChangeOntology', label = "Cancel")
     showModal(
       modalDialog(
         content,
@@ -1220,6 +1222,10 @@ server <- function(input, output, session) {
       removeModal()
     }
   })
+  
+  observeEvent(input$cancelChangeOntology, {
+    removeModal()
+  }, ignoreInit = T)
   
   observeEvent(input$manualClose, {
     removeModal()
