@@ -162,6 +162,7 @@ ui <- fluidPage(
                                                       actionButton('manual', label = div("Standardize Manually", helpButton("Update selected terms to manually chosen standardized term.")))
                                                     )),
                                    uiOutput("resetAndSave"), hr(),
+                                   uiOutput("cancelChangeOntology"), hr(),
                                    div(
                                      actionButton('editBack', "Back", css.class = "back_button"),
                                      actionButton('editNext', "Next", css.class = "next_button"))
@@ -190,7 +191,7 @@ ui <- fluidPage(
                                      condition = 'input.editColumn',
                                      selectizeInput(
                                        'newColumn',
-                                       label = "Select new column name:",
+                                       label = "Select New Column Name:",
                                        choices = NULL,
                                        options = list(placeholder = 'Please select a column above...',
                                                       closeAfterSelect = TRUE)
@@ -312,7 +313,7 @@ server <- function(input, output, session) {
     title <- "Error! Ontology locked for download!!"
     content <- tagList()
     content[[1]] <- p("Due to licensing restrictions, the ontology you selected to match terms with is locked for download from BioPortal. Please select a different ontology.")
-    content[[2]] <- selectizeInput('newOntologySelector', label = "Select new Ontology:", 
+    content[[2]] <- selectizeInput('newOntologySelector', label = "Select New Ontology:", 
                                    choices = list('Recommended Ontologies' = c("", values$recommendedOntologies),
                                                   'All Ontologies' = listOfOntNames),
                                    options = list(
@@ -401,7 +402,7 @@ server <- function(input, output, session) {
   # Input File (header selector must only be set when user first uploads file; otherwise, if the user selects the number of header lines
   # before the table renders, the box flickers back and forth between selection and default)
   observeEvent(input$file1, ignoreInit = T, {
-    withProgress(message = "Initializing elements", {# Initialize variables so functionality is enabled and user can click between tabs without pushing "next"
+    withProgress(message = "Initializing Elements", {# Initialize variables so functionality is enabled and user can click between tabs without pushing "next"
       output$inputError <- tryCatch({
         values$datasetInput <<- readInputFile(input$file1)
         if (any(is.na(colnames(values$datasetInput)))) {
@@ -536,7 +537,7 @@ server <- function(input, output, session) {
             
             bioportalOntologiesDataFrame <- data.frame(t(sapply(bioportalOntologies,c)))
             bioportalOntologiesDataFrame$nameAndAcronymn = paste(bioportalOntologiesDataFrame$acronym, bioportalOntologiesDataFrame$name) # Makes a column with both acronym and name
-            listOfOntNames <<- bioportalOntologiesDataFrame[, ncol(bioportalOntologiesDataFrame)] # This accesses the last column of the dateframe
+            listOfOntNames <<- bioportalOntologiesDataFrame[, ncol(bioportalOntologiesDataFrame)] # This accesses the last column of the dataframe
             write.table(listOfOntNames, file = ONTOLOGY_LIST_FILE_PATH, append = FALSE, quote = FALSE,
                         row.names = FALSE, col.names = FALSE)
           }
@@ -728,13 +729,14 @@ server <- function(input, output, session) {
     title <- "Change the Ontology"
     
     content <- tagList()
-    content[[1]] <- selectizeInput('newOntologySelector', label = "Select new Ontology:", 
+    content[[1]] <- selectizeInput('newOntologySelector', label = "Select New Ontology:", 
                                    choices = list('Recommended Ontologies' = c("", values$recommendedOntologies),
                                                   'All Ontologies' = listOfOntNames),
                                    options = list(
                                      placeholder = "Please choose terms above...",
                                      closeAfterSelect = TRUE))
     content[[3]] <- actionButton('resetAndSave', label = "Save and Reset Ontology")
+    content[[4]] <- actionButton('cancelChangeOntology', label = "Cancel")
     showModal(
       modalDialog(
         content,
@@ -748,7 +750,7 @@ server <- function(input, output, session) {
   output$editThisColumnSelector <- renderUI({
     selectizeInput(
       'editThisColumn', 
-      label = "Select column to standardize:", 
+      label = "Select Column to Standardize:", 
       choices = c("", columns()),
       selected = values$lastSelectedEditColumn,
       options = list(placeholder = 'Select column or start typing...',
@@ -758,7 +760,7 @@ server <- function(input, output, session) {
   # ** Auto-match ---------------------------------------------------------------
   observeEvent(input$automatch, ignoreInit = T, {
     # The "withProgress" adds a progress bar while automatch is getting ready. The functions "inc()" in this section increment the progress bar
-    withProgress(message = 'Automatching Data', value = 0, {
+    withProgress(message = "Automatching Data", value = 0, {
       values$automatchResult <- list()
       
       # Disable the buttons while the matches are loading.
@@ -1041,7 +1043,7 @@ server <- function(input, output, session) {
   
   # ** MANUAL MODAL 1 
   observeEvent(input$manual, {
-    withProgress(message = "Getting Manual Standardization ready", value = 0, {
+    withProgress(message = "Getting Manual Standardization Ready", value = 0, {
       incProgress(0.7)
       downloadURL <- sprintf(paste("http://data.bioontology.org/ontologies/", values$ontologyAcronym, "/download?download_format=csv&display_links=false&apikey=", API_KEY, sep = ""))
       title <- "Manual Standardization"
@@ -1221,6 +1223,10 @@ server <- function(input, output, session) {
     }
   })
   
+  observeEvent(input$cancelChangeOntology, {
+    removeModal()
+  }, ignoreInit = T)
+  
   observeEvent(input$manualClose, {
     removeModal()
   }, ignoreInit = T)
@@ -1260,7 +1266,7 @@ server <- function(input, output, session) {
   output$editColumnSelector <- renderUI({
     selectizeInput(
       'editColumn', 
-      label = "Specify column to rename:", 
+      label = "Specify Column to Rename:", 
       choices = c("", columns()),
       options = list(placeholder = 'Select column or start typing...',
                      closeAfterSelect = TRUE, create = TRUE))
