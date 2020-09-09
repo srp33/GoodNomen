@@ -268,7 +268,7 @@ server <- function(input, output, session) {
   session$allowReconnect(TRUE)
   
   # Reactive Values
-  values <- reactiveValues(datasetInput = NULL, dataset = NULL, 
+  values <- reactiveValues(datasetInput = NULL, dataset = NULL, extraHeaders = NULL,
                            extension = "", terminology = NULL, lastSelectedEditColumn = "", viewingSubset = c(1, 5),
                            informationDataFrame = NULL, ontologyAcronym = "",
                            recommendedOntologies = NULL, listOfOntNames = NULL, ontName = "", TOTAL_TERM_LIST = NULL,
@@ -380,17 +380,26 @@ server <- function(input, output, session) {
     datasetInput <- values$datasetInput
     txt <- paste0(
       "colNameRow <- ", colNameRow, "\n",
-      "if (colNameRow == 0) {
+      "startRow <- ", startRow, "\n",
+      "extraHeaders <- NULL\n",
+      "if (startRow > 1) {
+      extraIndices <- 1:(startRow - 1)
+      extraIndices <- extraIndices[-colNameRow]
+      extraHeaders <- datasetInput[extraIndices,]
+      }
+      if (colNameRow == 0) {
       newColsNames <- paste(\"Column\", 1:ncol(datasetInput), sep = \"_\")
     } else {
       newColsNames <- datasetInput[",colNameRow,",]
     }
     colnames(datasetInput) = newColsNames
-    datasetInput <- datasetInput[",startRow,":nrow(datasetInput),]"
+    datasetInput <- datasetInput[",startRow,":nrow(datasetInput),]
+    "
     )
     eval(parse(text = txt))
     masterText <<- paste0(masterText, "\n\n# Set column names and format datasheet\n", readInputFileText, "\n", txt)
     values$dataset <- datasetInput
+    values$extraHeaders <- extraHeaders
     
     if (any(is.na(colnames(values$dataset)))) {
       colnames(values$dataset)[is.na(colnames(values$dataset))] <- "Null1"
@@ -455,9 +464,9 @@ server <- function(input, output, session) {
   # When the header pops up after you upload the file
   observeEvent(input$header, {
     numericHeader <- as.numeric(input$header)
-    #if (numericHeader != 1) {
-    #  disable("header")
-    #}
+    if (numericHeader != 1) {
+      disable("header")
+    }
     setColNames(numericHeader + 1, if (numericHeader > 0) 1 else 0) 
   }, ignoreNULL = TRUE)
   
@@ -760,7 +769,7 @@ server <- function(input, output, session) {
   # ** Auto-match ---------------------------------------------------------------
   observeEvent(input$automatch, ignoreInit = T, {
     # The "withProgress" adds a progress bar while automatch is getting ready. The functions "inc()" in this section increment the progress bar
-    withProgress(message = "Automatching Data", value = 0, {
+    withProgress(message = "Auto-matching Data", value = 0, {
       values$automatchResult <- list()
       
       # Disable the buttons while the matches are loading.
@@ -1418,7 +1427,7 @@ server <- function(input, output, session) {
     content = function(file) {
       thisExtension <- if (nchar(input$extension) == 0) extension() else input$extension
       toWrite <- if (grepl("xls", thisExtension)) "xlsx" else extensionsMap[[thisExtension]]
-      return(do.call(paste0("write_", toWrite), list(values$dataset, file, "col_names" = (input$header != "0"))))
+      return(do.call(paste0("write_", toWrite), list(rbind(setNames(values$extraHeaders, names(values$dataset)), values$dataset), file, "col_names" = (input$header != "0"))))
     }
   )
   
@@ -1432,7 +1441,7 @@ server <- function(input, output, session) {
       fullFileName <- paste0(fileName, ".R")
       masterText <<- paste0(masterText, "\n", "\n# Save File\n",
                             "file <- '", paste0(input$outputFileName, thisExtension),
-                            "'\n", paste0("write_", substring(thisExtension, 2)), "(datasetInput, file)",
+                            "'\n", paste0("write_", substring(thisExtension, 2)), "(rbind(setNames(extraHeaders, names(datasetInput)), datasetInput), file)",
                             "\nprint('Your file has been successfully saved and modified with the name: ",input$outputFileName, "')")
       write.table(masterText, file, row.names = F, col.names = F, quote = F)
       showNotification(paste0("Your file was successfully saved."))
