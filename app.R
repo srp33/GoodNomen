@@ -13,7 +13,10 @@ library(tools)
 library(writexl)
 library(readxl)"
 
+# "masterText" collects text for an Rscript that will replicate commands executed by Good Nomen
+# Instances where masterText is edited are marked with "# ADD TEXT TO SCRIPT" followed by a description of what is being added
 masterText <- NULL
+
 eval(parse(text = loadLibraries))
 
 # Set file upload limit to 50 MB
@@ -268,7 +271,7 @@ server <- function(input, output, session) {
   session$allowReconnect(TRUE)
   
   # Reactive Values
-  values <- reactiveValues(datasetInput = NULL, dataset = NULL, extraHeaders = NULL,
+  values <- reactiveValues(datasetInput = NULL, dataset = NULL, extraHeaders = NULL, headerText = NULL,
                            extension = "", terminology = NULL, lastSelectedEditColumn = "", viewingSubset = c(1, 5),
                            informationDataFrame = NULL, ontologyAcronym = "",
                            recommendedOntologies = NULL, listOfOntNames = NULL, ontName = "", TOTAL_TERM_LIST = NULL,
@@ -370,8 +373,11 @@ server <- function(input, output, session) {
     text <- paste0("# Please ensure that your terminology file (", inFile[1],") is in the same directory as this script before executing. Please also make sure that your R console is in the correct working terminal (use setwd() to change to the directory that your files are in).")
     installPackages <- addLibrary(listOfLibrariesUsed)
     readInputFileText <<- paste0("datasetInput <- read_", extensionsMap[[fileExt]], "('", inFile$name, "', col_names = FALSE)")
+    
+    # ADD TEXT TO SCRIPT for loading libraries
     masterText <<- NULL
     masterText <<- paste0(masterText,  installPackages, "\n\n", loadLibraries, "\n\n", text) 
+    
     do.call(paste0("read_", extensionsMap[[fileExt]]), list(inFile$datapath, "col_names" = FALSE))
   }
   
@@ -397,7 +403,7 @@ server <- function(input, output, session) {
     "
     )
     eval(parse(text = txt))
-    masterText <<- paste0(masterText, "\n\n# Set column names and format datasheet\n", readInputFileText, "\n", txt)
+    values$headerText <- txt
     values$dataset <- datasetInput
     values$extraHeaders <- extraHeaders
     
@@ -434,9 +440,9 @@ server <- function(input, output, session) {
         )
       })
       
-      if (!is.null(values$dataset)) {# We had previously loaded a file and need to display the new file
-        setColNames(2, 1) 
-      }
+      #if (!is.null(values$dataset)) {# We had previously loaded a file and need to display the new file
+      #  setColNames(2, 1) 
+      #}
       incProgress(1/9, detail = "header selector")
       incProgress(1/9, detail = "terminology selector")
       incProgress(1/9, detail = "column selector")
@@ -652,6 +658,10 @@ server <- function(input, output, session) {
   
   # This observe event handles downloading the ontology, checking to see if it's locked, and moving forward to the next page
   observeEvent(input$buttonLoadThenNext, {
+    
+    # ADD TEXT TO SCRIPT for modifying headers 
+    masterText <<- paste0(masterText, "\n\n# Set column names and format datasheet\n", readInputFileText, "\n", values$headerText)
+    
     # Parse the acronym from the ontology name and show it
     values$ontologyAcronym <<- strsplit(values$ontName, " ")[[1]][1]
     
@@ -991,7 +1001,9 @@ server <- function(input, output, session) {
         # This tells the R Script which terms we want to change and what we want to change them to
         # It also changes the values in the dataset to their corrected value (if it was checked)
         names <- paste0("^", values$informationDataFrame$`Current Term`[accepted], "$")
-        masterText <<- paste0(masterText, "\n\n# Changing the dataset based on AutoMatch\n", "columnNameOfChangedTerms <- \"", columnNameOfChangedTerms, 
+        
+        # ADD TEXT TO SCRIPT for auto-matching
+        masterText <<- paste0(masterText, "\n\n# Changing the dataset based on auto-match\n", "columnNameOfChangedTerms <- \"", columnNameOfChangedTerms, 
                               "\"\n", "acceptedList <- c(", paste0("'", unname(acceptedList), "'", collapse = ", "), ")",
                               "\n","namesAcceptedList <- c(", paste0("'", names, "'", collapse = ", "), ")",
                               "\nnames(acceptedList) <- namesAcceptedList")
@@ -1023,7 +1035,9 @@ server <- function(input, output, session) {
         txt <- paste0("datasetInput[[editThisColumn]][datasetInput[[editThisColumn]] == \"", item, "\"] <- \"", newData, "\"")
         eval(parse(text = txt))
         values$dataset <- datasetInput
-        masterText <<- paste0(masterText, "\n\n", "#Manual Standardization\neditThisColumn <- \"", editThisColumn, "\"\n", txt)
+        
+        # ADD TEXT TO SCRIPT for manual standardization
+        masterText <<- paste0(masterText, "\n\n", "# Manual standardization\neditThisColumn <- \"", editThisColumn, "\"\n", txt)
       }
     })
     values$manualSaveMessage <- paste0("Standardizations for column \"", input$editThisColumn, "\" have been saved. ",
@@ -1362,6 +1376,8 @@ server <- function(input, output, session) {
                      "\ncolnames(datasetInput)[which(colnames(datasetInput) == editColumn)] <- newColumn")
       eval(parse(text = txt))
       values$dataset <- datasetInput
+      
+      # ADD TEXT TO SCRIPT for modifying column names
       masterText <<- paste0(masterText, "\n", txt)
     }
     showNotification(paste0("Column \"", input$editColumn, "\" has been renamed to \"", input$newColumn, ".\""))
@@ -1439,7 +1455,9 @@ server <- function(input, output, session) {
       fileName <- if (input$outputFileName == "") "shiny_output" else input$outputFileName
       thisExtension <- if (nchar(input$extension) == 0) extension() else input$extension
       fullFileName <- paste0(fileName, ".R")
-      masterText <<- paste0(masterText, "\n", "\n# Save File\n",
+      
+      # ADD TEXT TO SCRIPT for saving the file
+      masterText <<- paste0(masterText, "\n", "\n# Save file\n",
                             "file <- '", paste0(input$outputFileName, thisExtension),
                             "'\n", paste0("write_", substring(thisExtension, 2)), "(rbind(setNames(extraHeaders, names(datasetInput)), datasetInput), file)",
                             "\nprint('Your file has been successfully saved and modified with the name: ",input$outputFileName, "')")
