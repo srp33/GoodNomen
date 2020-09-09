@@ -384,7 +384,7 @@ server <- function(input, output, session) {
   # After we upload the file, select the row we want to identify as the column names (and the number of header rows)
   setColNames <- function(startRow, colNameRow) {
     datasetInput <- values$datasetInput
-    txt <- paste0(
+    headerText <- paste0(
       "colNameRow <- ", colNameRow, "\n",
       "startRow <- ", startRow, "\n",
       "extraHeaders <- NULL\n",
@@ -402,8 +402,8 @@ server <- function(input, output, session) {
     datasetInput <- datasetInput[",startRow,":nrow(datasetInput),]
     "
     )
-    eval(parse(text = txt))
-    values$headerText <- txt
+    eval(parse(text = headerText))
+    values$headerText <- headerText
     values$dataset <- datasetInput
     values$extraHeaders <- extraHeaders
     
@@ -440,9 +440,6 @@ server <- function(input, output, session) {
         )
       })
       
-      #if (!is.null(values$dataset)) {# We had previously loaded a file and need to display the new file
-      #  setColNames(2, 1) 
-      #}
       incProgress(1/9, detail = "header selector")
       incProgress(1/9, detail = "terminology selector")
       incProgress(1/9, detail = "column selector")
@@ -1007,10 +1004,10 @@ server <- function(input, output, session) {
                               "\"\n", "acceptedList <- c(", paste0("'", unname(acceptedList), "'", collapse = ", "), ")",
                               "\n","namesAcceptedList <- c(", paste0("'", names, "'", collapse = ", "), ")",
                               "\nnames(acceptedList) <- namesAcceptedList")
-        txt <- "datasetInput[[columnNameOfChangedTerms]] <- str_replace_all(datasetInput[[columnNameOfChangedTerms]], acceptedList)"
-        eval(parse(text = txt))
+        automatchingText <- "datasetInput[[columnNameOfChangedTerms]] <- str_replace_all(datasetInput[[columnNameOfChangedTerms]], acceptedList)"
+        eval(parse(text = automatchingText))
         values$dataset <- datasetInput
-        masterText <<- paste0(masterText, "\n", txt)
+        masterText <<- paste0(masterText, "\n", automatchingText)
       }
     }
     removeModal()
@@ -1032,12 +1029,12 @@ server <- function(input, output, session) {
       for (item in input$editData) {
         incProgress(1/numItems, detail = item)
         datasetInput <- values$dataset
-        txt <- paste0("datasetInput[[editThisColumn]][datasetInput[[editThisColumn]] == \"", item, "\"] <- \"", newData, "\"")
-        eval(parse(text = txt))
+        manualText <- paste0("datasetInput[[editThisColumn]][datasetInput[[editThisColumn]] == \"", item, "\"] <- \"", newData, "\"")
+        eval(parse(text = manualText))
         values$dataset <- datasetInput
         
         # ADD TEXT TO SCRIPT for manual standardization
-        masterText <<- paste0(masterText, "\n\n", "# Manual standardization\neditThisColumn <- \"", editThisColumn, "\"\n", txt)
+        masterText <<- paste0(masterText, "\n\n", "# Manual standardization\neditThisColumn <- \"", editThisColumn, "\"\n", manualText)
       }
     })
     values$manualSaveMessage <- paste0("Standardizations for column \"", input$editThisColumn, "\" have been saved. ",
@@ -1370,15 +1367,15 @@ server <- function(input, output, session) {
     else {
       datasetInput <- values$dataset
       newColumn <- gsub("\"", "\\\\\"", input$newColumn)
-      txt <<- paste0("\n#Edit Column Name\n",
+      changeColumnText <<- paste0("\n#Edit Column Name\n",
                      "editColumn <- \"", input$editColumn, "\"\n",
                      "newColumn <- \"", newColumn, "\"",
                      "\ncolnames(datasetInput)[which(colnames(datasetInput) == editColumn)] <- newColumn")
-      eval(parse(text = txt))
+      eval(parse(text = changeColumnText))
       values$dataset <- datasetInput
       
       # ADD TEXT TO SCRIPT for modifying column names
-      masterText <<- paste0(masterText, "\n", txt)
+      masterText <<- paste0(masterText, "\n", changeColumnText)
     }
     showNotification(paste0("Column \"", input$editColumn, "\" has been renamed to \"", input$newColumn, ".\""))
   })
