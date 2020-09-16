@@ -492,11 +492,12 @@ server <- function(input, output, session) {
   })
   
   # This changes the dataset if new rows are selected
-  observeEvent(input$headerPreviewRowsSelected, {
+  #"_rows_selected" is not part of the variable name-it is required to retrieve the row selected by the user
+  observeEvent(input$headerPreview_rows_selected, {
     if (any(is.na(colnames(values$datasetInput)))) {
       colnames(values$datasetInput)[is.na(colnames(values$datasetInput))] <- "Null3"
     }
-    setColNames(as.numeric(input$header) + 1, input$headerPreviewRowsSelected)
+    setColNames(as.numeric(input$header) + 1, input$headerPreview_rows_selected)
   }, ignoreNULL = TRUE)
   
   # ** BioPortal Access (Download Ontologies)
