@@ -93,7 +93,7 @@ timeOutError <- function() {
 }
 
 autoMatchModule <- function(current, standard, booleanValue){
-  ns <- NS(current)
+  ns <- NS(standard)
   tagList(
     fluidRow(
       column(width = 2, p(current, style = "padding:9px")),
@@ -273,7 +273,7 @@ server <- function(input, output, session) {
   # Reactive Values
   values <- reactiveValues(datasetInput = NULL, dataset = NULL, extraHeaders = NULL, headerText = NULL,
                            extension = "", terminology = NULL, lastSelectedEditColumn = "", viewingSubset = c(1, 5),
-                           informationDataFrame = NULL, ontologyAcronym = "",
+                           matches = NULL, ontologyAcronym = "",
                            recommendedOntologies = NULL, listOfOntNames = NULL, ontName = "", TOTAL_TERM_LIST = NULL,
                            recTermsList = NULL, deselectedPushed = FALSE,
                            selectedPushed = FALSE, numTimesClicked = 0)
@@ -387,20 +387,19 @@ server <- function(input, output, session) {
     headerText <- paste0(
       "colNameRow <- ", colNameRow, "\n",
       "startRow <- ", startRow, "\n",
-      "extraHeaders <- NULL\n",
-      "if (startRow > 1) {
-      extraIndices <- 1:(startRow - 1)
-      extraIndices <- extraIndices[-colNameRow]
-      extraHeaders <- datasetInput[extraIndices,]
-      }
-      if (colNameRow == 0) {
-      newColsNames <- paste(\"Column\", 1:ncol(datasetInput), sep = \"_\")
-    } else {
-      newColsNames <- datasetInput[",colNameRow,",]
-    }
-    colnames(datasetInput) = newColsNames
-    datasetInput <- datasetInput[",startRow,":nrow(datasetInput),]
-    "
+      "extraHeaders <- NULL\n\n",
+      "if (startRow > 1) {\n",
+        "\textraIndices <- 1:(startRow - 1)\n",
+        "\textraIndices <- extraIndices[-colNameRow]\n",
+        "\textraHeaders <- datasetInput[extraIndices,]\n",
+      "}\n",
+      "if (colNameRow == 0) {\n",
+        "\tnewColsNames <- paste(\"Column\", 1:ncol(datasetInput), sep = \"_\")\n",
+      "} else {\n",
+        "\tnewColsNames <- datasetInput[",colNameRow,",]\n",
+      "}\n",
+      "colnames(datasetInput) <- newColsNames\n",
+      "datasetInput <- datasetInput[",startRow,":nrow(datasetInput),]"
     )
     eval(parse(text = headerText))
     values$headerText <- headerText
@@ -493,11 +492,12 @@ server <- function(input, output, session) {
   })
   
   # This changes the dataset if new rows are selected
-  observeEvent(input$headerPreviewRowsSelected, {
+  #"_rows_selected" is not part of the variable name-it is required to retrieve the row selected by the user
+  observeEvent(input$headerPreview_rows_selected, {
     if (any(is.na(colnames(values$datasetInput)))) {
       colnames(values$datasetInput)[is.na(colnames(values$datasetInput))] <- "Null3"
     }
-    setColNames(as.numeric(input$header) + 1, input$headerPreviewRowsSelected)
+    setColNames(as.numeric(input$header) + 1, input$headerPreview_rows_selected)
   }, ignoreNULL = TRUE)
   
   # ** BioPortal Access (Download Ontologies)
@@ -811,10 +811,10 @@ server <- function(input, output, session) {
           })
           
           autoMatchDF <- as.data.frame(t(sapply(dataFrameAnnotator,c)))
-          informationDataFrame <- data.frame("Current Term" = NA, "Standardized Term" = NA, "Accept" = TRUE, check.names = FALSE)
+          matches <- data.frame("Current Term" = NA, "Standardized Term" = NA, "Accept" = TRUE, check.names = FALSE)
           
           n <- nrow(autoMatchDF) + 2
-          # Loop through the dataframe (df) and extract Standardized and Current Names
+          # Loop through the dataframe and extract Standardized and Current Names
           for (i in 1:nrow(autoMatchDF)) {
             incProgress(1/n)
             standardName <- unlist(lapply(autoMatchDF[i, 1], function(l) l[[1]]), recursive = FALSE) #grab the standardized name
@@ -834,7 +834,7 @@ server <- function(input, output, session) {
             }
             
             # If the term is already in the data frame, don't add it (must come after the code above). Maybe later, let the user pick which term they would rather pick
-            if (currentNamesList[1] %in% informationDataFrame[,1]) {
+            if (currentNamesList[1] %in% matches[,1]) {
               next;
             }
             
@@ -846,26 +846,26 @@ server <- function(input, output, session) {
               lapply(currentNamesList, function(x) {
                 if (!is.na(x)) {
                   if (x != standardName) {
-                    informationDataFrame <<- rbind(informationDataFrame, list(x, standardName, TRUE)) 
+                    matches <<- rbind(matches, list(x, standardName, TRUE)) 
                   }
                 }
               })
             }
             else {
               if (currentNamesList != standardName) {
-                informationDataFrame <- rbind(informationDataFrame, list(currentNamesList, stringi::stri_trans_totitle(standardName), TRUE), stringsAsFactors = FALSE)
+                matches <- rbind(matches, list(currentNamesList, stringi::stri_trans_totitle(standardName), TRUE), stringsAsFactors = FALSE)
               }
             }
           }
-          informationDataFrame <- informationDataFrame[-1,] # There is a random column made in the last step so this strips that back down
-          values$informationDataFrame <- informationDataFrame[!(informationDataFrame$`Current Term` == informationDataFrame$`Standardized Term`),]
+          matches <- matches[-1,] # There is a random column made in the last step so this strips that back down
+          values$matches <- matches[!(matches$`Current Term` == matches$`Standardized Term`),]
           # Sort the table alphabetically
-          values$informationDataFrame <- informationDataFrame[order(informationDataFrame$`Standardized Term`),]
+          values$matches <- matches[order(matches$`Standardized Term`),]
           
           # Output the table
           if (length(autoMatchDF) > 0) {
             
-            if (length(informationDataFrame) > 0) {
+            if (length(matches) > 0) {
               content <- tagList()
               content[[1]] <- p(
                 paste(
@@ -920,13 +920,13 @@ server <- function(input, output, session) {
   
   # ** ** Auto-match Supporting Events
   observeEvent(input$selectAll,{
-    values$informationDataFrame[,3] <- rep(TRUE, nrow(values$informationDataFrame))
+    values$matches[,3] <- rep(TRUE, nrow(values$matches))
     values$selectedPushed <- TRUE
     renderAutoMatchTable()
   })
   
   observeEvent(input$deselectAll,  {
-    values$informationDataFrame[,3] <- rep(FALSE, nrow(values$informationDataFrame))
+    values$matches[,3] <- rep(FALSE, nrow(values$matches))
     values$deselectedPushed <- TRUE
     renderAutoMatchTable()
   })
@@ -941,8 +941,8 @@ server <- function(input, output, session) {
             column(width = 2, h4("Accept?"))
           )
         ),
-        lapply(1:nrow(values$informationDataFrame), function(i) {
-          autoMatchModule(values$informationDataFrame[i,1], values$informationDataFrame[i,2], values$informationDataFrame[i,3])
+        lapply(1:nrow(values$matches), function(i) {
+          autoMatchModule(values$matches[i,1], values$matches[i,2], values$matches[i,3])
         }),
       )
     })
@@ -953,9 +953,9 @@ server <- function(input, output, session) {
     observeEvent(input$checkBox, {
       if (values$deselectedPushed == FALSE && values$selectedPushed == FALSE) {
         if (input$checkBox == FALSE) {
-          values$informationDataFrame[modID,3] <- FALSE
+          values$matches[modID,3] <- FALSE
         } else if (input$checkBox == TRUE) {
-          values$informationDataFrame[modID,3] <- TRUE
+          values$matches[modID,3] <- TRUE
         }
       } else {
         values$numTimesClicked = values$numTimesClicked + 1
@@ -964,16 +964,16 @@ server <- function(input, output, session) {
     
     # This generates the automatch table Module and connects the listener (see automatchTableListener)
     observe({
-      if (!is.null(values$informationDataFrame)) {
-        lapply(1:nrow(values$informationDataFrame), function(i) {
-          callModule(automatchTableListener, values$informationDataFrame[i,1],i)
+      if (!is.null(values$matches)) {
+        lapply(1:nrow(values$matches), function(i) {
+          callModule(automatchTableListener, values$matches[i,1],i)
         })
       }
     })
     
     # Listener to control the select all and deselect all button
     observe({
-      if (values$numTimesClicked >= nrow(values$informationDataFrame)) {
+      if (values$numTimesClicked >= nrow(values$matches)) {
         values$numTimesClicked <- 0
         values$selectedPushed = FALSE
         values$deselectedPushed = FALSE
@@ -983,21 +983,21 @@ server <- function(input, output, session) {
   
   # ** ** Auto-match Save 
   observeEvent(input$automatchSave, ignoreInit = T, {
-    if (length(which(values$informationDataFrame[,3])) > 0) {
+    if (length(which(values$matches[,3])) > 0) {
       # Change dataset table values to reflect changes made by editor
       values$lastSelectedEditColumn <- input$editThisColumn
-      accepted <- values$informationDataFrame[,3]
-      acceptedList <- values$informationDataFrame$'Standardized Term'[accepted]
+      accepted <- values$matches[,3]
+      acceptedList <- values$matches$'Standardized Term'[accepted]
       
       # The if statement checks to make sure that at least 1 term has been selected to save. Else, don't change any terms.
       if (length(acceptedList) > 0 ) {
-        names(acceptedList) <- paste0("^", values$informationDataFrame$`Current Term`[accepted], "$")
+        names(acceptedList) <- paste0("^", values$matches$`Current Term`[accepted], "$")
         columnNameOfChangedTerms <- input$editThisColumn #The column from the actual datasheet that is to be changed
         datasetInput <- values$dataset
         
         # This tells the R Script which terms we want to change and what we want to change them to
         # It also changes the values in the dataset to their corrected value (if it was checked)
-        names <- paste0("^", values$informationDataFrame$`Current Term`[accepted], "$")
+        names <- paste0("^", values$matches$`Current Term`[accepted], "$")
         
         # ADD TEXT TO SCRIPT for auto-matching
         masterText <<- paste0(masterText, "\n\n# Changing the dataset based on auto-match\n", "columnNameOfChangedTerms <- \"", columnNameOfChangedTerms, 
@@ -1325,7 +1325,7 @@ server <- function(input, output, session) {
           timeOutError()
         })
         newColNamesDF <- as.data.frame(t(sapply(dataFrameAnnotator,c)))
-        informationDataFrame <- data.frame("Current Term" = NA, "Standardized Term" = NA, "Accept" = TRUE, check.names = FALSE)
+        matches <- data.frame("Current Term" = NA, "Standardized Term" = NA, "Accept" = TRUE, check.names = FALSE)
         
         # Loop through the dataframe (df) and extract the new recommended column names
         for (i in 1:3) {
@@ -1440,7 +1440,10 @@ server <- function(input, output, session) {
     content = function(file) {
       thisExtension <- if (nchar(input$extension) == 0) extension() else input$extension
       toWrite <- if (grepl("xls", thisExtension)) "xlsx" else extensionsMap[[thisExtension]]
-      return(do.call(paste0("write_", toWrite), list(rbind(setNames(values$extraHeaders, names(values$dataset)), values$dataset), file, "col_names" = (input$header != "0"))))
+      if (!is.null(values$extraHeaders)) {
+        values$dataset <- rbind(setNames(values$extraHeaders, names(values$dataset)), values$dataset)
+      }
+      return(do.call(paste0("write_", toWrite), list(values$dataset, file, "col_names" = (input$header != "0"))))
     }
   )
   
@@ -1455,8 +1458,11 @@ server <- function(input, output, session) {
       
       # ADD TEXT TO SCRIPT for saving the file
       masterText <<- paste0(masterText, "\n", "\n# Save file\n",
+                            "if (!is.null(extraHeaders)) {\n",
+                            "\tdatasetInput <- rbind(setNames(extraHeaders, names(datasetInput)), datasetInput)\n",
+                            "}\n",
                             "file <- '", paste0(input$outputFileName, thisExtension),
-                            "'\n", paste0("write_", substring(thisExtension, 2)), "(rbind(setNames(extraHeaders, names(datasetInput)), datasetInput), file)",
+                            "'\n", paste0("write_", substring(thisExtension, 2)), "(datasetInput, file)",
                             "\nprint('Your file has been successfully saved and modified with the name: ",input$outputFileName, "')")
       write.table(masterText, file, row.names = F, col.names = F, quote = F)
       showNotification(paste0("Your file was successfully saved."))
