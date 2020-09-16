@@ -940,7 +940,6 @@ server <- function(input, output, session) {
             column(width = 2, h4("Accept?"))
           )
         ),
-        #TESTING CHECKBOX ERROR--IT'S HERE!!
         lapply(1:nrow(values$matches), function(i) {
           autoMatchModule(values$matches[i,1], values$matches[i,2], values$matches[i,3])
         }),
