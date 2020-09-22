@@ -857,7 +857,7 @@ server <- function(input, output, session) {
           values$matches <- matches[order(matches$`Standardized Term`),]
           
           # Output the table
-          if (length(autoMatchDF) > 0) {
+          if (nrow(values$matches) > 0) {
             if (length(matches) > 0) {
               content <- tagList()
               content[[1]] <- p(
