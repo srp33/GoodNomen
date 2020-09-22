@@ -11,7 +11,8 @@ library(shinyjs)
 library(tidyverse)
 library(tools)
 library(writexl)
-library(readxl)"
+library(readxl)
+library(httr)"
 
 # "masterText" collects text for an Rscript that will replicate commands executed by Good Nomen
 # Instances where masterText is edited are marked with "# ADD TEXT TO SCRIPT" followed by a description of what is being added
@@ -77,12 +78,9 @@ getRecommendedTerms <- function(dataSet) {# Get a list of terms to standardize
   sampleRows  <- sample_n(dataSet, min(NUM_SAMPLE_ROWS, nrow(dataSet)))
   rowChar <- toString(unlist(unique(unlist(sampleRows, use.names = FALSE)))) # Change sample table to one string
   rowChar <- URLencode(rowChar, reserved = TRUE) #Why encode? Characters in a URL other than the English alphanumeric characters and - _ . ~ should be encoded as % plus a two-digit hexadecimal representation, and any single-byte character can be so encoded. The standard refers to this as 'percent-encoding'.
-  rURL <- sprintf("http://data.bioontology.org/recommender?input=%s&apikey=%s&display_links=false&display_context=false", rowChar, API_KEY)
-  
-  # I had the error found here (https://stackoverflow.com/questions/49173967/trouble-using-jsonlites-fromjson-with-url-in-r) when I didn't include next three lines of code. Ignore the warning they generate
-  res <- readLines(rURL)
-  class(res) <- "json"
-  return(res)
+  rURL <- "http://data.bioontology.org/recommender?"
+  response <- POST(rURL, body = list(input = rowChar, apikey = API_KEY, display_links = "false", display_context = "false"))
+  return(response)
 }
 
 timeOutError <- function() {
@@ -532,7 +530,8 @@ server <- function(input, output, session) {
           if (diffNum > DAYS_SINCE_DOWNLOAD) { 
             tryCatch({
               res <- R.utils::withTimeout({
-                bioportalOntologies <- RJSONIO::fromJSON(paste0("http://data.bioontology.org/ontologies?apikey=", API_KEY))
+                bioportalOntologiesResponse <- POST("http://data.bioontology.org/ontologies?", body = list(apikey = API_KEY))
+                bioportalOntologies <- content(bioportalOntologiesResponse, "parsed")
               }, timeout = TIMEOUT_TIME)
             }, TimeoutException = function(ex) {
               timeOutError()
@@ -581,23 +580,18 @@ server <- function(input, output, session) {
           else {
             # Get the acronym for the top three recommended Ontologies 
             tryCatch({
-              res <- R.utils::withTimeout(  { 
-                dataFrameRecommend <- jsonlite::fromJSON(rURL) 
+              res <- R.utils::withTimeout(  {
+                dataFrameRecommend <- content(rURL, "parsed")
                 recommenderDF <- as.data.frame(t(sapply(dataFrameRecommend,c)))
               }, timeout = TIMEOUT_TIME)
             }, TimeoutException = function(ex) {
               timeOutError()
             })
-            
             recTibble <- as_tibble(recommenderDF)
             if (ncol(recTibble) > 1) {
-              recTibble <- as_tibble(recommenderDF)
-              recTibble <- recTibble %>% 
-                select(ontologies) %>% 
-                unnest(ontologies) %>% 
-                unnest(ontologies) %>% 
-                pull(acronym) 
-              
+              recTibbleData <- sapply(unnest(select(recTibble, ontologies), ontologies), unlist)
+              recTibble <- recTibbleData[seq(1, length(recTibbleData), by = 3)]
+
               # If there are fewer than three elements in the recommended ontology, set the NUM_RECOMMENDED_ONTOLOGIES to the size of the list created
               if (length(recTibble) < NUM_REC_ONTO) {NUM_REC_ONTO <<- length(recTibble)}
               
@@ -688,7 +682,7 @@ server <- function(input, output, session) {
     # If needed, download this ontology from BioPortal. Else, read cached file.
     if (shouldDownload) {
       downloadURL <- sprintf(paste("http://data.bioontology.org/ontologies/", values$ontologyAcronym, "/download?download_format=csv&display_links=false&apikey=", API_KEY, sep = ""))
-
+      
       if (!url.exists(downloadURL)) {
         removeModal()
         # SITUATION: ONTOLOGY IS LOCKED FOR DOWNLOAD & it's never been downloaded before
@@ -697,7 +691,7 @@ server <- function(input, output, session) {
         tryCatch({
           res <- R.utils::withTimeout(  {
             tmpFilePath <- paste0(tempfile(), ".csv.gz")
-            ontologyFile <- download.file(downloadURL, tmpFilePath, quiet = FALSE, mode = "wb")
+            testDownloadURL <- GET(downloadURL, write_disk(tmpFilePath))
             ontologyFile <- suppressMessages(suppressWarnings(read_csv(tmpFilePath)))
             unlink(tmpFilePath)
           },  timeout = TIMEOUT_TIME)
@@ -864,7 +858,6 @@ server <- function(input, output, session) {
           
           # Output the table
           if (length(autoMatchDF) > 0) {
-            
             if (length(matches) > 0) {
               content <- tagList()
               content[[1]] <- p(
@@ -935,7 +928,7 @@ server <- function(input, output, session) {
     output$automatchTable <- renderUI({
       tagList(
         tagList(
-          fluidRow(
+          fluidRow(responsive = TRUE,
             column(width = 2, align = "center", h4("Current Term")),
             column(width = 3, h4("Standardized Term")),
             column(width = 2, h4("Accept?"))
@@ -1215,6 +1208,8 @@ server <- function(input, output, session) {
   
   observeEvent(input$manualSave, {
     standardizeManually()
+    #removeModal()
+    #toggleModal(session, "nextManualModal", toggle = "open")
   })
   
   output$savedMessage <- renderText({
