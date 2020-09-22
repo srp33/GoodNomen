@@ -1208,8 +1208,6 @@ server <- function(input, output, session) {
   
   observeEvent(input$manualSave, {
     standardizeManually()
-    #removeModal()
-    #toggleModal(session, "nextManualModal", toggle = "open")
   })
   
   output$savedMessage <- renderText({
