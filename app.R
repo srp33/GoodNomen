@@ -928,7 +928,7 @@ server <- function(input, output, session) {
     output$automatchTable <- renderUI({
       tagList(
         tagList(
-          fluidRow(responsive = TRUE,
+          fluidRow(
             column(width = 2, align = "center", h4("Current Term")),
             column(width = 3, h4("Standardized Term")),
             column(width = 2, h4("Accept?"))
@@ -1055,7 +1055,7 @@ server <- function(input, output, session) {
   )
   
   # ** MANUAL MODAL 1 
-  observeEvent(input$manual, {
+  startManual <- function() {
     withProgress(message = "Getting Manual Standardization Ready", value = 0, {
       incProgress(0.7)
       downloadURL <- sprintf(paste("http://data.bioontology.org/ontologies/", values$ontologyAcronym, "/download?download_format=csv&display_links=false&apikey=", API_KEY, sep = ""))
@@ -1085,6 +1085,14 @@ server <- function(input, output, session) {
           easyClose = TRUE)
       )
     })
+  }
+  
+  observeEvent(input$manual, {
+    startManual()
+  })
+  
+  observeEvent(input$manualAnother, {
+    startManual()
   })
   
   observeEvent(input$nextManualModal, {
@@ -1164,11 +1172,16 @@ server <- function(input, output, session) {
       style = "display: inline-block;",
       actionButton("saveConfirmBtn", "Save")
     )
-    content[[10]] <- actionButton('manualClose', label = "Close", class = "secondary_button")
-    content[[11]] <- saveConfirmModal
-    content[[12]] <- br()
-    content[[13]] <- textOutput("savedMessage")
-    content[[14]] <- tags$head(tags$style("#savedMessage {color:green}"))
+    content[[10]] <- conditionalPanel(
+      condition = "input.editData && input.manualSave",
+      style = "display: inline-block;",
+      actionButton("manualAnother", "Standardize Another Group of Terms")
+    )
+    content[[11]] <- actionButton('manualClose', label = "Close", class = "secondary_button")
+    content[[12]] <- saveConfirmModal
+    content[[13]] <- br()
+    content[[14]] <- textOutput("savedMessage")
+    content[[15]] <- tags$head(tags$style("#savedMessage {color:green}"))
     
     showModal(
       modalDialog(
