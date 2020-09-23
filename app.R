@@ -107,7 +107,8 @@ autoMatchModule <- function(current, standard, booleanValue){
 ui <- fluidPage(
   tags$head(
     tags$link(rel = "stylesheet", type = "text/css", href = "style.css"),
-    tags$link(rel = "icon", type = "image/png", href = "Logo.png")
+    tags$link(rel = "icon", type = "image/png", href = "Logo.png"),
+    tags$style("body { word-wrap: break-word; }")
   ),
   includeScript("www/reactive_preferences.js"),
   useShinyjs(),
