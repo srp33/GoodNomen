@@ -7,6 +7,7 @@ library(rjson)
 library(shiny)
 library(shinyBS)
 library(shinycssloaders)
+library(shinybusy)
 library(shinyjs)
 library(tidyverse)
 library(tools)
@@ -106,7 +107,8 @@ autoMatchModule <- function(current, standard, booleanValue){
 ui <- fluidPage(
   tags$head(
     tags$link(rel = "stylesheet", type = "text/css", href = "style.css"),
-    tags$link(rel = "icon", type = "image/png", href = "Logo.png")
+    tags$link(rel = "icon", type = "image/png", href = "Logo.png"),
+    tags$style("body { word-wrap: break-word; }")
   ),
   includeScript("www/reactive_preferences.js"),
   useShinyjs(),
@@ -134,7 +136,7 @@ ui <- fluidPage(
                         # Data Preview 
                         mainPanel(
                           tags$em(textOutput("loadDataPreviewText")),
-                          wellPanel(uiOutput("loadDataColNav"), shinycssloaders::withSpinner(DTOutput("uploadPreview")))
+                          wellPanel(uiOutput("loadDataColNav"), shinycssloaders::withSpinner(DTOutput("uploadPreview"), color = "#112446"))
                         ))),
              
              # * Edit Data (Auto/Manual) ---------------------------------------------------------------
@@ -242,7 +244,7 @@ ui <- fluidPage(
                       mainPanel(
                         tags$em(textOutput("saveDataPreviewText")),
                         uiOutput("saveDataColNav"),
-                        wellPanel(shinycssloaders::withSpinner(DTOutput("saveDataPreview")))
+                        wellPanel(shinycssloaders::withSpinner(DTOutput("saveDataPreview"), color = "#112446"))
                       )
              ),
              
@@ -506,13 +508,11 @@ server <- function(input, output, session) {
       # Pop up window informs the user that accessing info from BioPortal will take a while
       tryCatch({
         res <- R.utils::withTimeout(  { 
-          showModal(modalDialog(title = "Loading Ontologies from BioPortal",
-                                p("To help you standardize your data, we are accessing the entire list of ontologies and specific ontologies from ",
-                                  (a(href = 'https://bioportal.bioontology.org/', 'BioPortal')), " recommended for your dataset. 
-                                  Depending on your internet connection and the last time you used Good Nomen, this could take longer than a minute.
-                                  Thank you for your patience."),
-                                shinycssloaders::withSpinner(" ", type = SPINNER_TYPE, proxy.height = "150px"), footer = NULL, easyClose = F))
-          
+          show_modal_spinner(spin = "spring", color = "#112446",
+                             text = p("To help you standardize your data, we are accessing the entire list of ontologies and specific ontologies from ",
+                             (a(href = 'https://bioportal.bioontology.org/', 'BioPortal')), " recommended for your dataset. 
+                             Depending on your internet connection and the last time you used Good Nomen, this could take longer than a minute.
+                             Thank you for your patience."))
           # Check to make sure OntologyList exists
           if (!file.exists(ONTOLOGY_LIST_FILE_PATH)) {
             file.create(ONTOLOGY_LIST_FILE_PATH)
@@ -609,8 +609,7 @@ server <- function(input, output, session) {
       }, TimeoutException = function(ex) {
         timeOutError()
       })
-      removeModal()
-      
+      remove_modal_spinner()
       selectizeInput('ontologySelector',
                      label = div(
                        "Select Ontology:",
@@ -657,15 +656,12 @@ server <- function(input, output, session) {
     values$ontologyAcronym <<- strsplit(values$ontName, " ")[[1]][1]
     
     values$manualSaveMessage <- NULL
-    showModal(modalDialog(title = "Loading Standardized Terms from BioPortal.",
-                          p("To help you standardize your data, we are pulling all standardized terms from BioPortal so you have the choice to select them.",
-                            "If you would like to use this functionality on your own browser, please follow ",
-                            (a(href = 'https://bioportal.bioontology.org/annotator', 'this link')), " and input the terminology you wish to change. 
-                            Depending on your internet connection, this could take longer than a minute.", 
-                            "Thank you for your patience."),
-                          shinycssloaders::withSpinner(" ", type = SPINNER_TYPE, proxy.height = "150px"),
-                          footer = NULL,
-                          easyClose = F))
+    show_modal_spinner(spin = "spring", color = "#112446",
+                       text = p("To help you standardize your data, we are pulling all standardized terms from BioPortal so you have the choice to select them.",
+                                "If you would like to use this functionality on your own browser, please follow ",
+                                (a(href = 'https://bioportal.bioontology.org/annotator', 'this link')), " and input the terminology you wish to change. 
+                                Depending on your internet connection, this could take longer than a minute.", 
+                                "Thank you for your patience."))
     
     # Get the last date modified from a file and see if it's been 7 days
     ontFileName <- paste0(TEMP_DIR_PATH, values$ontologyAcronym, "_Ontology.txt")
@@ -684,7 +680,7 @@ server <- function(input, output, session) {
       downloadURL <- sprintf(paste("http://data.bioontology.org/ontologies/", values$ontologyAcronym, "/download?download_format=csv&display_links=false&apikey=", API_KEY, sep = ""))
       
       if (!url.exists(downloadURL)) {
-        removeModal()
+        remove_modal_spinner()
         # SITUATION: ONTOLOGY IS LOCKED FOR DOWNLOAD & it's never been downloaded before
         lockedOntologyError()
       } else {
@@ -714,14 +710,14 @@ server <- function(input, output, session) {
         # TODO make an error message to show them inconsistencies in downloaded data
         write.table(values$TOTAL_TERM_LIST, file = ontFileName, append = FALSE, quote = FALSE,
                     row.names = FALSE, col.names = FALSE)
-        removeModal()
+        remove_modal_spinner()
         updateTabsetPanel(session, 'tabs', selected = 'editTable')
       }
     } else {
       ontologyTerms <- readLines(ontFileName)
       ontologyTerms <- unlist(lapply(ontologyTerms, noquote))
       values$TOTAL_TERM_LIST <<- ontologyTerms
-      removeModal()
+      remove_modal_spinner()
       updateTabsetPanel(session, 'tabs', selected = 'editTable')
     }
   })
@@ -928,7 +924,7 @@ server <- function(input, output, session) {
     output$automatchTable <- renderUI({
       tagList(
         tagList(
-          fluidRow(responsive = TRUE,
+          fluidRow(
             column(width = 2, align = "center", h4("Current Term")),
             column(width = 3, h4("Standardized Term")),
             column(width = 2, h4("Accept?"))
@@ -1055,7 +1051,7 @@ server <- function(input, output, session) {
   )
   
   # ** MANUAL MODAL 1 
-  observeEvent(input$manual, {
+  startManual <- function() {
     withProgress(message = "Getting Manual Standardization Ready", value = 0, {
       incProgress(0.7)
       downloadURL <- sprintf(paste("http://data.bioontology.org/ontologies/", values$ontologyAcronym, "/download?download_format=csv&display_links=false&apikey=", API_KEY, sep = ""))
@@ -1085,6 +1081,14 @@ server <- function(input, output, session) {
           easyClose = TRUE)
       )
     })
+  }
+  
+  observeEvent(input$manual, {
+    startManual()
+  })
+  
+  observeEvent(input$manualAnother, {
+    startManual()
   })
   
   observeEvent(input$nextManualModal, {
@@ -1092,15 +1096,12 @@ server <- function(input, output, session) {
     # ** MANUAL MODAL 2 
     # Download data and recommendations from BioPortal
     values$manualSaveMessage <- NULL
-    showModal(modalDialog(title = "Loading Standardized Terms from BioPortal.",
-                          p("To help you standardize your data, we are pulling all standardized terms from BioPortal so you have the choice to select them.",
-                            "If you would like to use this functionality on your own browser, please follow ",
-                            (a(href = 'https://bioportal.bioontology.org/annotator', 'this link')), " and input the terminology you wish to change.
-                            Depending on your internet connection, this could take longer than a minute.",
-                            "Thank you for your patience."),
-                          shinycssloaders::withSpinner(" ", type = SPINNER_TYPE, proxy.height = "150px"),
-                          footer = NULL,
-                          easyClose = F))
+    show_modal_spinner(spin = "spring", color = "#112446",
+                       text = p("To help you standardize your data, we are pulling all standardized terms from BioPortal so you have the choice to select them.",
+                                "If you would like to use this functionality on your own browser, please follow ",
+                                (a(href = 'https://bioportal.bioontology.org/annotator', 'this link')), " and input the terminology you wish to change.
+                                Depending on your internet connection, this could take longer than a minute.",
+                                "Thank you for your patience."))
     
     # Recommender (recommend three terms)
     termsToStandardizeManually <- paste0(unlist(input$editData), collapse = ', ')
@@ -1164,11 +1165,16 @@ server <- function(input, output, session) {
       style = "display: inline-block;",
       actionButton("saveConfirmBtn", "Save")
     )
-    content[[10]] <- actionButton('manualClose', label = "Close", class = "secondary_button")
-    content[[11]] <- saveConfirmModal
-    content[[12]] <- br()
-    content[[13]] <- textOutput("savedMessage")
-    content[[14]] <- tags$head(tags$style("#savedMessage {color:green}"))
+    content[[10]] <- conditionalPanel(
+      condition = "input.editData && input.manualSave",
+      style = "display: inline-block;",
+      actionButton("manualAnother", "Standardize Another Group of Terms")
+    )
+    content[[11]] <- actionButton('manualClose', label = "Close", class = "secondary_button")
+    content[[12]] <- saveConfirmModal
+    content[[13]] <- br()
+    content[[14]] <- textOutput("savedMessage")
+    content[[15]] <- tags$head(tags$style("#savedMessage {color:green}"))
     
     showModal(
       modalDialog(
@@ -1221,11 +1227,9 @@ server <- function(input, output, session) {
     values$ontologyAcronym <<- ontologyLstAcr[[1]][1]
     updateSelectizeInput(session, 'ontologySelector', selected = values$ontName) #This updates the first drop down menu with your new selection
     
-    showModal(modalDialog(title = "Loading New Ontology.",
-                          p("Please be patient, this shouldn't take long."),
-                          shinycssloaders::withSpinner(" ", type = SPINNER_TYPE, proxy.height = "150px"),
-                          footer = NULL,
-                          easyClose = F))
+    show_modal_spinner(spin = "spring", color = "#112446",
+                       text = p("Loading new ontology. Please be patient, this shouldn't take long."),)
+    
     downloadURL <- sprintf(paste("http://data.bioontology.org/ontologies/", values$ontologyAcronym, "/download?download_format=csv&display_links=false&apikey=", API_KEY, sep = ""))
     
     if (!url.exists(downloadURL)) { # THE ONTOLOGY IS LOCKED FOR DOWNLOAD
@@ -1295,14 +1299,11 @@ server <- function(input, output, session) {
     if (!is.null(input$editColumn) && nchar(input$editColumn) > 0) {
       disable("newColumn")
       
-      showModal(modalDialog(title = "Loading Recommended Column Names.",
-                            p("To help you standardize your data, we are accessing recommended Column Names from ",
-                              (a(href = 'https://bioportal.bioontology.org/annotator', 'BioPortal')), ". Feel free to write your own column names as well.",  
-                              "Depending on your internet connection and the last time you used Good Nomen, this could take longer than a minute.", 
-                              "Thank you for your patience."),
-                            shinycssloaders::withSpinner(" ", type = SPINNER_TYPE, proxy.height = "150px"),
-                            footer = NULL,
-                            easyClose = F))
+      show_modal_spinner(spin = "spring", color = "#112446",
+                         text = p("To help you standardize your data, we are accessing recommended Column Names from ",
+                                  (a(href = 'https://bioportal.bioontology.org/annotator', 'BioPortal')), ". Feel free to write your own column names as well.",  
+                                  "Depending on your internet connection and the last time you used Good Nomen, this could take longer than a minute.", 
+                                  "Thank you for your patience."))
       
       # Get recommended column names from BioPortal
       aURL <- sprintf("http://data.bioontology.org/annotator?text=%s&apikey=%s", input$editColumn, API_KEY)
