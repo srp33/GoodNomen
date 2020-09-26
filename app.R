@@ -530,14 +530,14 @@ server <- function(input, output, session) {
           if (diffNum > DAYS_SINCE_DOWNLOAD) { 
             tryCatch({
               res <- R.utils::withTimeout({
-                bioportalOntologiesResponse <- POST("http://data.bioontology.org/ontologies?", body = list(apikey = API_KEY))
+                bioportalOntologiesResponse <- GET(paste0("http://data.bioontology.org/ontologies?apikey=", API_KEY))
                 bioportalOntologies <- content(bioportalOntologiesResponse, "parsed")
               }, timeout = TIMEOUT_TIME)
             }, TimeoutException = function(ex) {
               timeOutError()
             }, finally = {
               if (is.null(bioportalOntologies)) {
-                removeModal()
+                remove_modal_spinner()
                 showModal(modalDialog(title = "BioPortal Unavailable for Access",
                                       p("BioPortal seems to be down, please check ",
                                         (a(href = 'https://bioportal.bioontology.org/', 'BioPortal')), " to see if it is working. You may need to try again later. We apologize for the inconvenience."),
@@ -545,7 +545,6 @@ server <- function(input, output, session) {
                                       easyClose = F))
               }
             })
-            
             bioportalOntologiesDataFrame <- data.frame(t(sapply(bioportalOntologies,c)))
             bioportalOntologiesDataFrame$nameAndAcronymn = paste(bioportalOntologiesDataFrame$acronym, bioportalOntologiesDataFrame$name) # Makes a column with both acronym and name
             listOfOntNames <<- bioportalOntologiesDataFrame[, ncol(bioportalOntologiesDataFrame)] # This accesses the last column of the dataframe
