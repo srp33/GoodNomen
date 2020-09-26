@@ -320,7 +320,7 @@ server <- function(input, output, session) {
                                    choices = list('Recommended Ontologies' = c("", values$recommendedOntologies),
                                                   'All Ontologies' = listOfOntNames),
                                    options = list(
-                                     placeholder = "Please choose terms above...",
+                                     placeholder = "Please select an ontology...",
                                      closeAfterSelect = TRUE))
     content[[3]] <- actionButton('resetAndSave', label = "Save and Reset Ontology")
     showModal(
@@ -509,7 +509,7 @@ server <- function(input, output, session) {
       tryCatch({
         res <- R.utils::withTimeout(  { 
           show_modal_spinner(spin = "spring", color = "#112446",
-                             text = p("To help you standardize your data, we are accessing the entire list of ontologies and specific ontologies from ",
+                             text = p("To help you standardize your data, we are accessing the entire list of ontologies from ",
                              (a(href = 'https://bioportal.bioontology.org/', 'BioPortal')), " recommended for your dataset. 
                              Depending on your internet connection and the last time you used Good Nomen, this could take longer than a minute.
                              Thank you for your patience."))
@@ -656,9 +656,9 @@ server <- function(input, output, session) {
     
     values$manualSaveMessage <- NULL
     show_modal_spinner(spin = "spring", color = "#112446",
-                       text = p("To help you standardize your data, we are pulling all standardized terms from BioPortal so you have the choice to select them.",
+                       text = p("To help you standardize your data, we are pulling standardized terms from BioPortal.",
                                 "If you would like to use this functionality on your own browser, please follow ",
-                                (a(href = 'https://bioportal.bioontology.org/annotator', 'this link')), " and input the terminology you wish to change. 
+                                (a(href = 'https://bioportal.bioontology.org/annotator', 'this link')), " and select the terminology you wish to use. 
                                 Depending on your internet connection, this could take longer than a minute.", 
                                 "Thank you for your patience."))
     
@@ -738,7 +738,7 @@ server <- function(input, output, session) {
                                    choices = list('Recommended Ontologies' = c("", values$recommendedOntologies),
                                                   'All Ontologies' = listOfOntNames),
                                    options = list(
-                                     placeholder = "Please choose terms above...",
+                                     placeholder = "Please select an ontology...",
                                      closeAfterSelect = TRUE))
     content[[3]] <- actionButton('resetAndSave', label = "Save and Reset Ontology")
     content[[4]] <- actionButton('cancelChangeOntology', label = "Cancel")
@@ -1009,7 +1009,7 @@ server <- function(input, output, session) {
   
   # This is for the save/confirm button
   standardizeManually <- function() {
-    newData <- if (is.null(input$newData) || input$newData == "") NA else input$newData
+    newData <- if (is.null(input$newData) || input$newData == "" || input$saveConfirmBtn) NA else input$newData
     editThisColumn <- gsub("\"", "\\\\\"", input$editThisColumn)
     numItems <- length(input$editData)
     withProgress(message = "Standardizing", {
@@ -1090,43 +1090,50 @@ server <- function(input, output, session) {
     startManual()
   })
   
+  observeEvent(input$manualNAAnother, {
+    startManual()
+  })
+  
   observeEvent(input$nextManualModal, {
-    
-    # ** MANUAL MODAL 2 
-    # Download data and recommendations from BioPortal
+    termsToStandardizeManually <- paste0(unlist(input$editData), collapse = ', ')
     values$manualSaveMessage <- NULL
-    show_modal_spinner(spin = "spring", color = "#112446",
-                       text = p("To help you standardize your data, we are pulling all standardized terms from BioPortal so you have the choice to select them.",
+    
+    if (input$makeNA == 0) {
+    
+      # ** MANUAL MODAL 2 
+      # Download data and recommendations from BioPortal
+      show_modal_spinner(spin = "spring", color = "#112446",
+                       text = p("To help you standardize your data, we are pulling all standardized terms from BioPortal.",
                                 "If you would like to use this functionality on your own browser, please follow ",
-                                (a(href = 'https://bioportal.bioontology.org/annotator', 'this link')), " and input the terminology you wish to change.
+                                (a(href = 'https://bioportal.bioontology.org/annotator', 'this link')), " and select the terminology you wish to use.
                                 Depending on your internet connection, this could take longer than a minute.",
                                 "Thank you for your patience."))
     
-    # Recommender (recommend three terms)
-    termsToStandardizeManually <- paste0(unlist(input$editData), collapse = ', ')
-    recommendedTerms <- URLencode(termsToStandardizeManually, reserved = TRUE)
-    annURL <- sprintf("http://data.bioontology.org/annotator?text=%s&ontologies=%s&apikey=%s&display_links=false&exclude_synonyms=false&display_context=false&include=prefLabel", recommendedTerms,values$ontologyAcronym, API_KEY)
+      # Recommender (recommend three terms)
+      recommendedTerms <- URLencode(termsToStandardizeManually, reserved = TRUE)
+      annURL <- sprintf("http://data.bioontology.org/annotator?text=%s&ontologies=%s&apikey=%s&display_links=false&exclude_synonyms=false&display_context=false&include=prefLabel", recommendedTerms,values$ontologyAcronym, API_KEY)
     
-    values$recTermsList <<- NULL
-    if (url.exists(annURL) == TRUE) {
-      tryCatch({
-        res <- R.utils::withTimeout(  {
-          annDataFrame <- jsonlite::fromJSON(annURL)
-        },  timeout = TIMEOUT_TIME)
-      }, TimeoutException = function(ex) {
-        timeOutError()
-      })
-      frequencyTable <- table(annDataFrame$annotatedClass$prefLabel) # Convert this list to a frequency table
-      frequencyTable <- frequencyTable[order(frequencyTable, decreasing = T)]
+      values$recTermsList <<- NULL
+      if (url.exists(annURL) == TRUE) {
+        tryCatch({
+          res <- R.utils::withTimeout(  {
+            annDataFrame <- jsonlite::fromJSON(annURL)
+          },  timeout = TIMEOUT_TIME)
+        }, TimeoutException = function(ex) {
+          timeOutError()
+        })
+        frequencyTable <- table(annDataFrame$annotatedClass$prefLabel) # Convert this list to a frequency table
+        frequencyTable <- frequencyTable[order(frequencyTable, decreasing = T)]
       
-      if (NUM_REC_MANUAL > length(frequencyTable)) {
-        recTermsList <- names(head(frequencyTable, n = length(frequencyTable)))
-        recTermsList <- toString(recTermsList)
-        values$recTermsList <<- tools::toTitleCase(recTermsList)
-      }
-      else {
-        recTermsList <- names(head(frequencyTable, n = NUM_REC_MANUAL))
-        values$recTermsList <<- tools::toTitleCase(recTermsList)
+        if (NUM_REC_MANUAL > length(frequencyTable)) {
+          recTermsList <- names(head(frequencyTable, n = length(frequencyTable)))
+          recTermsList <- toString(recTermsList)
+          values$recTermsList <<- tools::toTitleCase(recTermsList)
+        }
+        else {
+          recTermsList <- names(head(frequencyTable, n = NUM_REC_MANUAL))
+          values$recTermsList <<- tools::toTitleCase(recTermsList)
+        }
       }
     }
     
@@ -1135,14 +1142,15 @@ server <- function(input, output, session) {
     title <- "Standardizing Selected Terms"
     
     content <- tagList()
-    content[[1]] <- p(
+    content[[1]] <- conditionalPanel(
+      condition = "!input.makeNA", p(
       paste(
         "Pick a term that represents all the terms you selected. ",
         "The options in the second box are from the selected terminology. By default, the program will pick the top rated term that connects all the data. 
          To apply changes to your data, press \"Save.\"",
         "All occurrences of the terms in the first box will be replaced with the selected terminology term."
       )
-    )
+    ))
     content[[2]] <- br()
     content[[3]] <- HTML(paste('Terms that you selected with a common meaning: ', termsToStandardizeManually))
     content[[4]] <- br()
@@ -1162,18 +1170,23 @@ server <- function(input, output, session) {
     content[[9]] <- conditionalPanel(
       condition = "input.editData && input.makeNA",
       style = "display: inline-block;",
-      actionButton("saveConfirmBtn", "Save")
+      actionButton("saveConfirmBtn", "Save as NA")
     )
     content[[10]] <- conditionalPanel(
+      condition = "input.editData && input.makeNA && input.saveConfirmBtn",
+      style = "display: inline-block;",
+      actionButton("manualNAAnother", "Standardize Another Group of Terms NA")
+    )
+    content[[11]] <- conditionalPanel(
       condition = "input.editData && input.manualSave",
       style = "display: inline-block;",
       actionButton("manualAnother", "Standardize Another Group of Terms")
     )
-    content[[11]] <- actionButton('manualClose', label = "Close", class = "secondary_button")
-    content[[12]] <- saveConfirmModal
-    content[[13]] <- br()
-    content[[14]] <- textOutput("savedMessage")
-    content[[15]] <- tags$head(tags$style("#savedMessage {color:green}"))
+    content[[12]] <- actionButton('manualClose', label = "Close", class = "secondary_button")
+    content[[13]] <- saveConfirmModal
+    content[[14]] <- br()
+    content[[15]] <- textOutput("savedMessage")
+    content[[16]] <- tags$head(tags$style("#savedMessage {color:green}"))
     
     showModal(
       modalDialog(
