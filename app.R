@@ -1014,15 +1014,16 @@ server <- function(input, output, session) {
     numItems <- length(input$editData)
     withProgress(message = "Standardizing", {
       values$lastSelectedEditColumn <- input$editThisColumn
+      # ADD TEXT TO SCRIPT for manual standardization
+      masterText <<- paste0(masterText, "\n\n", "# Manual standardization\neditThisColumn <- \"", editThisColumn, "\"\n")
+      
       for (item in input$editData) {
         incProgress(1/numItems, detail = item)
         datasetInput <- values$dataset
-        manualText <- paste0("datasetInput[[editThisColumn]][datasetInput[[editThisColumn]] == \"", item, "\"] <- \"", newData, "\"")
+        manualText <- paste0("datasetInput[[editThisColumn]][datasetInput[[editThisColumn]] == \"", item, "\"] <- \"", newData, "\"\n")
         eval(parse(text = manualText))
         values$dataset <- datasetInput
-        
-        # ADD TEXT TO SCRIPT for manual standardization
-        masterText <<- paste0(masterText, "\n\n", "# Manual standardization\neditThisColumn <- \"", editThisColumn, "\"\n", manualText)
+        masterText <<- paste0(masterText, manualText)
       }
     })
     values$manualSaveMessage <- paste0("Standardizations for column \"", input$editThisColumn, "\" have been saved. ",
@@ -1175,7 +1176,7 @@ server <- function(input, output, session) {
     content[[10]] <- conditionalPanel(
       condition = "input.editData && input.makeNA && input.saveConfirmBtn",
       style = "display: inline-block;",
-      actionButton("manualNAAnother", "Standardize Another Group of Terms NA")
+      actionButton("manualNAAnother", "Standardize Another Group of Terms")
     )
     content[[11]] <- conditionalPanel(
       condition = "input.editData && input.manualSave",
@@ -1362,7 +1363,7 @@ server <- function(input, output, session) {
   
   # Rename Column 
   observeEvent(input$columnRename, ignoreInit = T, {
-    #display warning if user does not select column to rename and new column name
+    # Display warning if user does not select column to rename and new column name
     if (input$editColumn == "" | input$newColumn == "") {
       toggleModal(session, 'columnModal', toggle = "open")
     }
@@ -1373,7 +1374,7 @@ server <- function(input, output, session) {
     else {
       datasetInput <- values$dataset
       newColumn <- gsub("\"", "\\\\\"", input$newColumn)
-      changeColumnText <<- paste0("\n#Edit Column Name\n",
+      changeColumnText <- paste0("\n# Edit Column Name\n",
                      "editColumn <- \"", input$editColumn, "\"\n",
                      "newColumn <- \"", newColumn, "\"",
                      "\ncolnames(datasetInput)[which(colnames(datasetInput) == editColumn)] <- newColumn")
