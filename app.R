@@ -13,7 +13,13 @@ library(tidyverse)
 library(tools)
 library(writexl)
 library(readxl)
-library(httr)"
+library(httr)
+library(tidytext) # https://www.tidytextmining.com/index.html
+data(stop_words)
+library(dplyr)
+library(readr)
+library(tidyr)
+library(stringdist)"
 
 # "masterText" collects text for an Rscript that will replicate commands executed by Good Nomen
 # Instances where masterText is edited are marked with "# ADD TEXT TO SCRIPT" followed by a description of what is being added
@@ -27,6 +33,7 @@ options(shiny.maxRequestSize = 50*1024^2, htmlwidgets.TOJSON_ARGS = list(na = 's
 # Global path variables -----------------------------------------------------------------
 
 TEMP_DIR_PATH <- ""
+
 # This will be true if the app is executed inside a Docker container.
 if (dir.exists("/home/shiny"))
   TEMP_DIR_PATH <- "/tmp/"
@@ -276,7 +283,7 @@ server <- function(input, output, session) {
                            matches = NULL, ontologyAcronym = "",
                            recommendedOntologies = NULL, listOfOntNames = NULL, ontName = "", TOTAL_TERM_LIST = NULL,
                            recTermsList = NULL, deselectedPushed = FALSE,
-                           selectedPushed = FALSE, numTimesClicked = 0)
+                           selectedPushed = FALSE, numTimesClicked = 0, ncit_synonyms = NULL, ncit_preferred = NULL)
   
   extension <- reactive({
     if (!is.null(input$file1)) {
@@ -352,6 +359,88 @@ server <- function(input, output, session) {
   moveBy <- reactive({
     min(max(floor(75 / colWidth()), 1), 5)
   })
+  
+  
+  # The input argument is a vector of strings. These are terms (including synonyms)
+  # from a controlled terminology (ontology). This function creates a "clean" version
+  # of each term. The clean version is lowercase. "Stop words" are removed, as well
+  # as some punctuation or extra whitespace.
+  build_term_tibble = function(terms) {
+    terms_df = tibble(term = terms) %>%
+      unnest_tokens(word, term, drop=FALSE) %>%
+      anti_join(stop_words) %>%
+      dplyr::rename(originalTerm = term) %>%
+      group_by(originalTerm) %>%
+      summarize(cleanedTerm=paste(word, collapse=" ")) %>%
+      ungroup() %>%
+      group_by(cleanedTerm) %>%
+      summarize(originalTerm = collapse_terms(originalTerm)) %>%
+      ungroup()
+    
+    return(terms_df)
+  }
+  
+  # When a cleaned term is the same for two original terms, 
+  # collapse them as |-separated values.
+  collapse_terms = function(terms) {
+    paste0(unique(terms), collapse = "|")
+  }
+  
+  # Finds matches between standardized terms and synonyms
+  identifyMatches = function(originalTerms) {
+    # Start a timer
+    startTime = Sys.time()
+    
+    withProgress(message = "Matching", {
+       m <- 100
+      
+      incProgress(5/m, detail = "Cleaning terms")
+    
+    # Build a tibble with "clean" terms alongside the original terms.
+    originalTerms = build_term_tibble(originalTerms)
+    
+    incProgress(5/m, detail = "Mapping to standardized terms")
+    
+    # Use the stringdist package to map the test (drug) terms to the ontology terms (including synonyms).
+    sdm = stringdistmatrix(pull(values$TOTAL_TERM_LIST, cleanedTerm), pull(originalTerms, cleanedTerm), method = "jw", p = 0.1)
+    
+    incProgress(5/m, detail = "Organizing matches")
+    
+    # We get a matrix back. Convert it to a tibble and label columns descriptively.
+    colnames(sdm) = pull(originalTerms, originalTerm)
+    sdm = as_tibble(sdm)
+    sdm = bind_cols(pull(values$TOTAL_TERM_LIST, originalTerm), sdm, .name_repair = "minimal")
+    colnames(sdm)[1] = "OntologyTerm"
+    
+    incProgress(5/m, detail = "Tidying matches")
+    
+    # Create a tidy version of the results. It includes steps for un-collapsing terms that were combined in previous steps and just making the results easier to work with.
+    sdm = pivot_longer(sdm, 2:ncol(sdm), names_to="TestTerm", values_to="Score") %>%
+      group_by(TestTerm) %>%
+      slice_min(n = 10, order_by = Score) %>%
+      separate_rows(OntologyTerm, sep="\\|") %>%
+      mutate(OntologyTerm = sapply(OntologyTerm, function(x) {
+        index = which(values$synonyms == x)
+        incProgress(1/m, detail = "Collecting matches")
+        values$preferred[[index[1]]] })) %>%
+      separate_rows(TestTerm, sep="\\|") %>%
+      group_by(TestTerm, OntologyTerm) %>%
+      summarize(Score = min(Score)) %>%
+      select(TestTerm, OntologyTerm, Score) %>%
+      arrange(TestTerm, Score)
+    
+    incProgress(5/m, detail = "Finishing")
+    
+    # Indicate how long the process took.
+    duration = Sys.time() - startTime
+    print("#############################")
+    print(duration)
+    print("#############################")
+    sdm <- sdm[!duplicated(sdm$TestTerm),]
+    
+    })
+    return(sdm)
+  }
   
   observeEvent(input$advance_clicked, {
     start <- min(ncol(values$datasetInput), values$viewingSubset[1] + moveBy())
@@ -664,6 +753,7 @@ server <- function(input, output, session) {
     
     # Get the last date modified from a file and see if it's been 7 days
     ontFileName <- paste0(TEMP_DIR_PATH, values$ontologyAcronym, "_Ontology.txt")
+    ALL_FILE_NAME <- paste0(TEMP_DIR_PATH, "All_Terms.txt")
 
     shouldDownload <- TRUE
     if (file.exists(ontFileName)) {
@@ -691,31 +781,52 @@ server <- function(input, output, session) {
             unlink(tmpFilePath)
           },  timeout = TIMEOUT_TIME)
         }, TimeoutException = function(ex) {
+          print("timeout reached")
           timeOutError()
         })
         
         # Format column names to retrieve a list of preferred names stored in the ontology
         colnames(ontologyFile) <- sub("_", " ", colnames(ontologyFile))
-        colnames(ontologyFile) <- tolower(colnames(ontologyFile))
+        colnames(ontologyFile) <- toTitleCase(colnames(ontologyFile))
         ontologyFile <- ontologyFile[, !duplicated(colnames(ontologyFile))] # This was added because the MEDO ontology had duplicate columns and wouldn't pull the preferred name because of it
+
         # There are a few options of what the preferred name can be such as "preferred name" and "label"
-        if ("preferred name" %in% colnames(ontologyFile)) {
-          values$TOTAL_TERM_LIST <- sort(pull(ontologyFile, var = "preferred name"))
-        } else if ("label" %in% colnames(ontologyFile)) {
-          values$TOTAL_TERM_LIST <- sort(pull(ontologyFile, var = "label"))
-        } else {
-          values$TOTAL_TERM_LIST <- sort(pull(ontologyFile, var = "preferred label"))
+        if ("Preferred Name" %in% colnames(ontologyFile)) {
+          ontologyFile <- dplyr::rename(ontologyFile, Preferred = `Preferred Name`)
+        } else if ("Label" %in% colnames(ontologyFile)) {
+          ontologyFile <- dplyr::rename(ontologyFile, Preferred = `Label`)
+        } else if ("Preferred Label" %in% colnames(ontologyFile)) {
+          ontologyFile <- dplyr::rename(ontologyFile, Preferred = `Preferred Label`)
         }
-        # TODO make an error message to show them inconsistencies in downloaded data
-        write.table(values$TOTAL_TERM_LIST, file = ontFileName, append = FALSE, quote = FALSE,
-                    row.names = FALSE, col.names = FALSE)
+        
+        ontologyFile <- ontologyFile %>%
+          filter(!Obsolete) %>%
+          select(-Definitions, -Obsolete) %>%
+          dplyr::rename(Synonym = Synonyms) %>%
+          separate_rows(Synonym, sep=" ?\\| ?")
+        
+        values$synonyms <- pull(ontologyFile, Synonym)
+        values$preferred <- pull(ontologyFile, Preferred)
+        
+        # Build a tibble with "clean" terms alongside the original terms.
+        matchedTerms = build_term_tibble(pull(ontologyFile, Synonym))
+        values$TOTAL_TERM_LIST <- matchedTerms
+        
+        write_csv(matchedTerms, file = ontFileName)
+        write_csv(select(ontologyFile, c(Preferred, Synonym)), file = ALL_FILE_NAME)
+        
         remove_modal_spinner()
         updateTabsetPanel(session, 'tabs', selected = 'editTable')
       }
     } else {
-      ontologyTerms <- readLines(ontFileName)
-      ontologyTerms <- unlist(lapply(ontologyTerms, noquote))
-      values$TOTAL_TERM_LIST <<- ontologyTerms
+      ontologyTerms <- read_csv(ontFileName)
+      values$TOTAL_TERM_LIST <- ontologyTerms
+      
+      ontologyFile <- read_csv(ALL_FILE_NAME)
+      
+      values$synonyms <- pull(ontologyFile, Synonym)
+      values$preferred <- pull(ontologyFile, Preferred)
+      
       remove_modal_spinner()
       updateTabsetPanel(session, 'tabs', selected = 'editTable')
     }
@@ -764,8 +875,6 @@ server <- function(input, output, session) {
   
   # ** Auto-match ---------------------------------------------------------------
   observeEvent(input$automatch, ignoreInit = T, {
-    # The "withProgress" adds a progress bar while automatch is getting ready. The functions "inc()" in this section increment the progress bar
-    withProgress(message = "Auto-matching Data", value = 0, {
       values$automatchResult <- list()
       
       # Disable the buttons while the matches are loading.
@@ -775,118 +884,58 @@ server <- function(input, output, session) {
       disable("editBack") # back button
       disable("editNext") # next button
       
-      #if the column is not selected, throw an error. Otherwise, continue
+      # If the column is not selected, throw an error. Otherwise, continue.
       if (is.null(input$editThisColumn) || input$editThisColumn == "") {
         title <- "Error"
         content <- columnNotSelectedMessage
       } else {
         title <- "Review Matches"
-        
-        # Create API Url to run BioPortal's Annotator
-        incProgress(.1)
-        uniqueTerms <- unique(values$dataset[[input$editThisColumn]])
-        uniqueTerms <- paste(unlist(uniqueTerms), collapse = ' ')
-        sURL <<- sprintf("http://data.bioontology.org/annotator?text=%s&apikey=%s",gsub(" ", "", URLencode(uniqueTerms, reserved = TRUE)), API_KEY)
-        sURL <<- paste0(sURL, "&ontologies=",values$ontologyAcronym, "&display_links=false&display_context=false&include=prefLabel")
-        
-        # Make a data frame from the JSON generated by Annotator (with a timer for timeout)
-        if (url.exists(sURL) == TRUE) {
-          tryCatch({
-            res <- R.utils::withTimeout(  {
-              incProgress(.1)
-              dataFrameAnnotator <- RJSONIO::fromJSON(sURL)}, timeout = TIMEOUT_TIME)
-          }, TimeoutException = function(ex) {
-            timeOutError()
-          })
-          
-          autoMatchDF <- as.data.frame(t(sapply(dataFrameAnnotator,c)))
-          matches <- data.frame("Current Term" = NA, "Standardized Term" = NA, "Accept" = TRUE, check.names = FALSE)
-          
-          n <- nrow(autoMatchDF) + 2
-          # Loop through the dataframe and extract Standardized and Current Names
-          for (i in 1:nrow(autoMatchDF)) {
-            incProgress(1/n)
-            standardName <- unlist(lapply(autoMatchDF[i, 1], function(l) l[[1]]), recursive = FALSE) #grab the standardized name
-            currentName <- unlist(unlist(autoMatchDF[i,3], recursive = FALSE), recursive = FALSE)
-            currentNamesList <- unique(currentName[grepl("text", names(currentName))])
-            currentNamesList <- stringi::stri_trans_totitle(currentNamesList)
-            
-            # Check to make sure there are names to standardize
-            if (is.na(currentNamesList[1])) {
-              break;
-            }
-            
-            # Sometimes bioportal checks and returns substrings of elements. If this is the case, this conditional changes the substring back to its full form
-            if (length(currentNamesList) != 0 || is.na(pmatch(tolower(currentNamesList), tolower(values$dataset[[input$editThisColumn]]))) == FALSE) {
-              index <- pmatch(tolower(currentNamesList), tolower(values$dataset[[input$editThisColumn]]))
-              currentNamesList = values$dataset[[input$editThisColumn]][index]
-            }
-            
-            # If the term is already in the data frame, don't add it (must come after the code above). Maybe later, let the user pick which term they would rather pick
-            if (currentNamesList[1] %in% matches[,1]) {
-              next;
-            }
-            
-            if (standardName == "" || is.na(standardName)) {
-              next;
-            } 
-            
-            if (length(currentNamesList) > 1) {
-              lapply(currentNamesList, function(x) {
-                if (!is.na(x)) {
-                  if (x != standardName) {
-                    matches <<- rbind(matches, list(x, standardName, TRUE)) 
-                  }
-                }
-              })
-            }
-            else {
-              if (currentNamesList != standardName) {
-                matches <- rbind(matches, list(currentNamesList, stringi::stri_trans_totitle(standardName), TRUE), stringsAsFactors = FALSE)
-              }
-            }
-          }
-          matches <- matches[-1,] # There is a random column made in the last step so this strips that back down
-          values$matches <- matches[!(matches$`Current Term` == matches$`Standardized Term`),]
-          # Sort the table alphabetically
-          values$matches <- matches[order(matches$`Standardized Term`),]
-          
-          # Output the table
-          if (nrow(values$matches) > 0) {
-            if (length(matches) > 0) {
-              content <- tagList()
-              content[[1]] <- p(
-                paste(
-                  "The following matches were found based on the terminology.",
-                  "Accept a match by checking the box in the row.",
-                  "Press \"Save\" to apply these changes to your data and close this window.",
-                  "If a match is accepted, all occurrences of the current term will be changed",
-                  "to the standardized term."
-                )
-              )
-              content[[2]] <- actionButton('selectAll', label = "Select All")
-              content[[3]] <- actionButton('deselectAll', label = "Deselect All")
-              content[[4]] <- br()
-              content[[5]] <- br()
-              content[[6]] <- uiOutput("automatchTable")
-              content[[7]] <- br()
-              content[[8]] <- actionButton('automatchSave', label = "Save")
-              content[[9]] <- actionButton('automatchClose', label = "Cancel", class = "secondary_button")
-              content[[10]] <- tags$head(tags$style(
-                "#automatchModal .modal-footer{ display:none}"
-              ))
-            } else {
-              content <- p("No matches found.")
-            }
-          } else {
-            content <- p("The terms in this column are already standardized or there were no terms to standardize.")
-          }
-        }
-        else {
-          content <- p("Server Error 404: Automatch couldn't generate. Try using a smaller file or just using manual selection.")
-        }
       }
-    })
+
+      # Identify matches
+      uniqueTerms <- unique(values$dataset[[input$editThisColumn]])
+      sdm <- identifyMatches(uniqueTerms)
+       
+      matches <- as.data.frame(select(sdm, c(TestTerm, OntologyTerm)) %>%
+         rename(`Current Term` = TestTerm) %>%
+         rename(`Standardized Term` = OntologyTerm) %>%
+         mutate(Accept = TRUE))
+      
+      values$matches <- matches[!(matches$`Current Term` == matches$`Standardized Term`),]
+      # Sort the table alphabetically
+      values$matches <- matches[order(matches$`Standardized Term`),]
+        
+      # Output the table
+      if (nrow(values$matches) > 0) {
+        if (length(matches) > 0) {
+          content <- tagList()
+          content[[1]] <- p(
+            paste(
+              "The following matches were found based on the terminology.",
+              "Accept a match by checking the box in the row.",
+              "Press \"Save\" to apply these changes to your data and close this window.",
+              "If a match is accepted, all occurrences of the current term will be changed",
+              "to the standardized term."
+            )
+          )
+          content[[2]] <- actionButton('selectAll', label = "Select All")
+          content[[3]] <- actionButton('deselectAll', label = "Deselect All")
+          content[[4]] <- br()
+          content[[5]] <- br()
+          content[[6]] <- uiOutput("automatchTable")
+          content[[7]] <- br()
+          content[[8]] <- actionButton('automatchSave', label = "Save")
+          content[[9]] <- actionButton('automatchClose', label = "Cancel", class = "secondary_button")
+          content[[10]] <- tags$head(tags$style(
+            "#automatchModal .modal-footer{ display:none}"
+          ))
+        } else {
+          content <- p("No matches found.")
+        }
+      } else {
+        content <- p("The terms in this column are already standardized or there were no terms to standardize.")
+      }
+    
     showModal(
       modalDialog(
         content,
@@ -1030,7 +1079,7 @@ server <- function(input, output, session) {
                                        "Click \"Close\" to continue to the next step.")
     updateCheckboxInput(session, "makeNA", value = FALSE)
     updateSelectizeInput(session, "editData", selected = NULL)
-    updateSelectizeInput(session, "newData", selected = "")
+    updateSelectizeInput(session, "newData", selected = NULL)
     return()
   }
   
@@ -1109,33 +1158,24 @@ server <- function(input, output, session) {
                                 (a(href = 'https://bioportal.bioontology.org/annotator', 'this link')), " and select the terminology you wish to use.
                                 Depending on your internet connection, this could take longer than a minute.",
                                 "Thank you for your patience."))
-    
-      # Recommender (recommend three terms)
-      recommendedTerms <- URLencode(termsToStandardizeManually, reserved = TRUE)
-      annURL <- sprintf("http://data.bioontology.org/annotator?text=%s&ontologies=%s&apikey=%s&display_links=false&exclude_synonyms=false&display_context=false&include=prefLabel", recommendedTerms,values$ontologyAcronym, API_KEY)
-    
-      values$recTermsList <<- NULL
-      if (url.exists(annURL) == TRUE) {
-        tryCatch({
-          res <- R.utils::withTimeout(  {
-            annDataFrame <- jsonlite::fromJSON(annURL)
-          },  timeout = TIMEOUT_TIME)
-        }, TimeoutException = function(ex) {
-          timeOutError()
-        })
-        frequencyTable <- table(annDataFrame$annotatedClass$prefLabel) # Convert this list to a frequency table
-        frequencyTable <- frequencyTable[order(frequencyTable, decreasing = T)]
       
-        if (NUM_REC_MANUAL > length(frequencyTable)) {
-          recTermsList <- names(head(frequencyTable, n = length(frequencyTable)))
-          recTermsList <- toString(recTermsList)
-          values$recTermsList <<- tools::toTitleCase(recTermsList)
-        }
-        else {
-          recTermsList <- names(head(frequencyTable, n = NUM_REC_MANUAL))
-          values$recTermsList <<- tools::toTitleCase(recTermsList)
-        }
+      values$recTermsList <- NULL
+      
+      sdm <- identifyMatches(input$editData)
+      matches <- as.data.frame(sdm)
+        
+      if (NUM_REC_MANUAL > nrow(matches)) {
+        recTermsList <- matches$OntologyTerm
+        values$recTermsList <- recTermsList
+          
       }
+      else {
+        matchesSubset <- head(matches, NUM_REC_MANUAL)
+        recTermsList <- matchesSubset$OntologyTerm
+        values$recTermsList <- recTermsList
+      }
+        
+      names(values$recTermsList) <- NULL
     }
     
     # ** MANUAL MODAL 3 
@@ -1202,13 +1242,13 @@ server <- function(input, output, session) {
   # Update the selectize input from the server's end (this is for ALL the terms in the Ontology, sometimes as large as 150,000 terms)
   observeEvent(input$nextManualModal, {
     if (length(values$recTermsList) > 0) {
-      updateSelectizeInput(session, 'newData', choices = list('Recommended Terms' = c(values$recTermsList, ""),
-                                                              'All Terms' = c("", values$TOTAL_TERM_LIST)), server = TRUE)
+      updateSelectizeInput(session, 'newData', choices = list("", 'Recommended Terms' = c(values$recTermsList, ""),
+                                                              'All Terms' = c("", sort(unique(values$preferred)))), server = TRUE)
     } else {
-      updateSelectizeInput(session, 'newData', choices = list(values$TOTAL_TERM_LIST), server = TRUE)
+      updateSelectizeInput(session, 'newData', choices = list(values$preferred), server = TRUE)
     }
   })
-  
+
   # Populating Manual Modal
   output$editDataSelector <- renderUI({
     selectizeInput('editData', label = "Enter terms that have a common meaning:", choices = unique(str_trim(values$dataset[[input$editThisColumn]][order(values$dataset[[input$editThisColumn]])])), multiple = T,
@@ -1309,55 +1349,26 @@ server <- function(input, output, session) {
   })
   
   observe({
+    #observeEvent(input$editColumn, ignoreInit = T, {
     if (!is.null(input$editColumn) && nchar(input$editColumn) > 0) {
       disable("newColumn")
       
       show_modal_spinner(spin = "spring", color = "#112446",
-                         text = p("To help you standardize your data, we are accessing recommended Column Names from ",
-                                  (a(href = 'https://bioportal.bioontology.org/annotator', 'BioPortal')), ". Feel free to write your own column names as well.",  
-                                  "Depending on your internet connection and the last time you used Good Nomen, this could take longer than a minute.", 
-                                  "Thank you for your patience."))
+                         text = paste0("To help you standardize your data, we are finding recommended column names from the ontology you 
+                                       selected. Feel free to write your own column names as well. Thank you for your patience."))
+
+      sdm <- identifyMatches(input$editColumn)
+      newColNames <- sdm$OntologyTerm
+      names(newColNames) <- NULL
       
-      # Get recommended column names from BioPortal
-      aURL <- sprintf("http://data.bioontology.org/annotator?text=%s&apikey=%s", input$editColumn, API_KEY)
-      aURL <- paste0(aURL, "&display_links=false&display_context=false&include=prefLabel")
-      newColNames <- c("")
-      
-      if (url.exists(aURL) == TRUE) {
-        tryCatch({
-          res <- R.utils::withTimeout(  {
-            dataFrameAnnotator <- RJSONIO::fromJSON(aURL)
-          },  timeout = TIMEOUT_TIME)
-        }, TimeoutException = function(ex) {
-          timeOutError()
-        })
-        newColNamesDF <- as.data.frame(t(sapply(dataFrameAnnotator,c)))
-        matches <- data.frame("Current Term" = NA, "Standardized Term" = NA, "Accept" = TRUE, check.names = FALSE)
-        
-        # Loop through the dataframe (df) and extract the new recommended column names
-        for (i in 1:3) {
-          standardName <- unlist(lapply(newColNamesDF[i, 1], function(l) l[[1]]), recursive = FALSE) #grab the standardized name
-          newColNames <- append(newColNames, stringi::stri_trans_totitle(standardName))
-        }
-      }
       removeModal()
       
       updateSelectizeInput(session, inputId = 'newColumn', choices = list('Recommended Terms' = c(newColNames, ""),
-                                                                          'All Terms' = c("", values$TOTAL_TERM_LIST)), server = TRUE,
+                                                                          'All Terms' = c("", values$preferred)), server = TRUE,
                            options = list(placeholder = 'Select a term or start typing...', 
                                           create = TRUE, maxItems = 5, maxOptions = 100,
                                           closeAfterSelect = TRUE))
       enable("newColumn")
-    }
-  })
-  
-  # Update the selectize input from the server's end (this is for ALL the terms in the Ontology, sometimes as large as 150,000 terms)
-  observeEvent(input$nextManualModal, {
-    if (length(values$recTermsList) > 0) {
-      updateSelectizeInput(session, 'newData', choices = list('Recommended Terms' = c(values$recTermsList, ""),
-                                                              'All Terms' = c("", values$TOTAL_TERM_LIST)), server = TRUE)
-    } else {
-      updateSelectizeInput(session, 'newData', choices = list(values$TOTAL_TERM_LIST), server = TRUE)
     }
   })
   
