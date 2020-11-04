@@ -283,7 +283,7 @@ server <- function(input, output, session) {
                            matches = NULL, ontologyAcronym = "",
                            recommendedOntologies = NULL, listOfOntNames = NULL, ontName = "", TOTAL_TERM_LIST = NULL,
                            recTermsList = NULL, deselectedPushed = FALSE,
-                           selectedPushed = FALSE, numTimesClicked = 0, ncit_synonyms = NULL, ncit_preferred = NULL)
+                           selectedPushed = FALSE, numTimesClicked = 0, synonyms = NULL, preferred = NULL)
   
   extension <- reactive({
     if (!is.null(input$file1)) {
@@ -391,6 +391,7 @@ server <- function(input, output, session) {
     # Start a timer
     startTime = Sys.time()
     
+    # The "withProgress" adds a progress bar. The functions "inc()" in this section increment the progress bar.
     withProgress(message = "Matching", {
        m <- 100
       
@@ -753,7 +754,7 @@ server <- function(input, output, session) {
     
     # Get the last date modified from a file and see if it's been 7 days
     ontFileName <- paste0(TEMP_DIR_PATH, values$ontologyAcronym, "_Ontology.txt")
-    ALL_FILE_NAME <- paste0(TEMP_DIR_PATH, "All_Terms.txt")
+    allFileName <- paste0(TEMP_DIR_PATH, "All_Terms.txt")
 
     shouldDownload <- TRUE
     if (file.exists(ontFileName)) {
@@ -813,7 +814,7 @@ server <- function(input, output, session) {
         values$TOTAL_TERM_LIST <- matchedTerms
         
         write_csv(matchedTerms, file = ontFileName)
-        write_csv(select(ontologyFile, c(Preferred, Synonym)), file = ALL_FILE_NAME)
+        write_csv(select(ontologyFile, c(Preferred, Synonym)), file = allFileName)
         
         remove_modal_spinner()
         updateTabsetPanel(session, 'tabs', selected = 'editTable')
@@ -822,7 +823,7 @@ server <- function(input, output, session) {
       ontologyTerms <- read_csv(ontFileName)
       values$TOTAL_TERM_LIST <- ontologyTerms
       
-      ontologyFile <- read_csv(ALL_FILE_NAME)
+      ontologyFile <- read_csv(allFileName)
       
       values$synonyms <- pull(ontologyFile, Synonym)
       values$preferred <- pull(ontologyFile, Preferred)
@@ -1349,7 +1350,6 @@ server <- function(input, output, session) {
   })
   
   observe({
-    #observeEvent(input$editColumn, ignoreInit = T, {
     if (!is.null(input$editColumn) && nchar(input$editColumn) > 0) {
       disable("newColumn")
       
