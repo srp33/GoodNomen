@@ -4,7 +4,7 @@ source('UI.R', local = TRUE)
 
 server <- function(input, output, session) { 
   session$allowReconnect(TRUE)
-  source('reactiveValues.R', local = TRUE)
+  source('sharedVariables.R', local = TRUE)
   source('sharedFunctions.R', local = TRUE)
   source('matchingFunctions.R', local = TRUE)
   source('loadData.R', local = TRUE)
@@ -13,4 +13,5 @@ server <- function(input, output, session) {
   source('saveData.R', local = TRUE)
   source('tabNavigation.R', local = TRUE)
 }
+
 shinyApp(ui, server)

@@ -1,9 +1,24 @@
 # User Interface (UI) ----------------------------------------------------------------------
+# Define function for tooltips 
+helpButton <- function(message = "content", placement = "right") {
+  return(tipify(icon("question-circle"), title = message, placement = placement, trigger = "hover"))
+}
+
+# Define accepted file types and the read_ functions used to load them
+extensionsMap <- c(".txt" = "tsv", ".tsv" = "tsv", ".csv" = "csv", ".xls" = "excel", ".xlsx" = "excel")
+
+# Define function for collapsing a list with proper grammar
+collapseText <- function(inputList) {
+  lastIndex <- length(inputList)
+  paste(paste(inputList[-1 * lastIndex], collapse = ", "), inputList[lastIndex], sep = ", and ")
+}
+
 ui <- fluidPage(
   tags$head(
     tags$link(rel = "stylesheet", type = "text/css", href = "style.css"),
     tags$link(rel = "icon", type = "image/png", href = "Logo.png"),
-    tags$style("body { word-wrap: break-word; }")
+    tags$style("body { word-wrap: break-word; }"),
+    tags$style(HTML("hr {border-top: 1px solid #000000;}"))
   ),
   includeScript("www/reactive_preferences.js"),
   useShinyjs(),
@@ -11,39 +26,36 @@ ui <- fluidPage(
              # Load Data ---------------------------------------------------------------
              tabPanel('Load Data', value = 'loadData', 
                       sidebarLayout(
-                        sidebarPanel(tags$img(src = 'Logo.png', align = "right", height = "100px"),
+                        sidebarPanel(width = LEFT_COLUMN_WIDTH, tags$img(src = 'Logo.png', align = "right", height = "100px"),
                                      h4("Load Data"),
-                                     p("Welcome to Good Nomen, an interface for mapping clinical data files based on standardized terminologies."),
+                                     p("Welcome to Good Nomen, an interface for mapping clinical data files based on standardized ontologies."),
                                      p(paste0(
                                        "Please upload a file containing patient data on each row and clinical variables in each column. ",
                                        "Accepted file types include ", collapseText(names(extensionsMap)), ".")
                                      ), 
-                                     fileInput(inputId = "file1", label = "Choose Input File:", 
+                                     fileInput(inputId = "userFile", label = "Choose Input File:", 
                                                multiple = FALSE, accept = names(extensionsMap), width = NULL, buttonLabel = "Browse...", placeholder = "No file selected"),
                                      textOutput("inputError"), tags$head(tags$style("#inputError {color: red;}")),
                                      uiOutput("headerSelector"),
-                                     uiOutput("colnamesSelector"), br(), br(),
+                                     uiOutput("colnamesSelector"),
                                      uiOutput("ontologySelector"),
                                      textOutput("error"), tags$head(tags$style("#error {color: red;}")), hr(),
-                                     conditionalPanel(condition = "input.whichTerminology == 'Upload a terminology'",
-                                                      uiOutput("uploadTerminologyButton")),
-                                     uiOutput("page1Next")), 
+                                     uiOutput("firstPageNext"), br(), br()), 
                         # Data Preview 
-                        mainPanel(
-                          tags$em(textOutput("loadDataPreviewText")),
-                          wellPanel(uiOutput("loadDataColNav"), shinycssloaders::withSpinner(DTOutput("uploadPreview"), color = "#112446"))
+                        mainPanel(width = RIGHT_COLUMN_WIDTH,
+                          wellPanel(uiOutput("uploadPreview"))
                         ))),
              
              # Edit Data (Auto/Manual) ---------------------------------------------------------------
              tabPanel('Edit Data', value = 'editTable', 
-                      sidebarPanel(width = 4,
+                      sidebarPanel(width = LEFT_COLUMN_WIDTH,
                                    tags$img(src = 'Logo.png', align = "right", height = "100px"),
                                    h4("Edit Data"),
                                    p(
                                      paste(
                                        "Data may be standardized automatically or manually.",
                                        "First select the name of the column containing the data you wish to edit.",
-                                       "If you would like to automate the matching process, press \"Auto-match.\"",
+                                       "If you would like to automate the matching process, press \"Automatch.\"",
                                        "The data will be processed and then a pop-up window will appear and ask you to review the matches.",
                                        "If you would like to manually update the data, press \"Standardize Manually.\"",
                                        "A different pop-up window will appear with instructions on how to edit the data.",
@@ -52,35 +64,35 @@ ui <- fluidPage(
                                    ), br(),
                                    htmlOutput("selectedOntology"),
                                    actionButton('changeOntology', label = div("Change Ontology", helpButton("Click to change which ontology you want to use")),
-                                                style = "color: #fff; background-color: #6baed6; border-color: #6baed6;"), br(), br(),
+                                                style = "color: #fff; background-color: #6baed6; border-color: #6baed6;", width = "100%"), br(), br(),
                                    uiOutput("editThisColumnSelector"),
-                                   conditionalPanel(condition = 'input.editThisColumn', 
-                                                    tagList(
-                                                      actionButton('automatch', label = div("Auto-match", helpButton("Matches will be found based on synonyms in the selected terminology."))),
-                                                      actionButton('manual', label = div("Standardize Manually", helpButton("Update selected terms to manually chosen standardized term.")))
-                                                    )),
+                                   uiOutput("automatch"),
+                                   uiOutput("manual"),
+                                   #fluidRow(column(width = 3, uiOutput("automatch")), 
+                                   #          column(width = 5, uiOutput("manual"))),
                                    uiOutput("resetAndSave"), hr(),
-                                   uiOutput("cancelChangeOntology"), hr(),
+                                   uiOutput("cancelChangeOntology"),
                                    div(
-                                     actionButton('editBack', "Back", css.class = "back_button"),
-                                     actionButton('editNext', "Next", css.class = "next_button"))
+                                     actionButton('editBack', "Back", css.class = "back_button", style = "color: #fff; background-color: #6baed6; border-color: #6baed6;"),
+                                     actionButton('editNext', "Next", css.class = "next_button", style = "float: right; color: #fff; background-color: #2ca25f; border-color: #2ca25f;"))
                       ),
-                      mainPanel(
+                      mainPanel(width = RIGHT_COLUMN_WIDTH,
                         tags$em(textOutput("editDataPreviewText")),
-                        wellPanel(uiOutput("editDataPreview"))
+                        wellPanel(dataTableOutput('singleColumn'), style = "display: table")
+                        #wellPanel(div(style = 'overflow-x: scroll', dataTableOutput('singleColumn')))
                       )
              ),
              
              # Update Column Names -----------------------------------------------------
              tabPanel('Update Column Names', value = 'updateColumnNames',
-                      sidebarPanel(width = 4,
+                      sidebarPanel(width = LEFT_COLUMN_WIDTH,
                                    tags$img(src = 'Logo.png', align = "right", height = "100px"),
                                    h4("Update Column Names"),
                                    p(
                                      paste(
                                        "If desired, select a column to rename and a new column name. When a column to rename is selected,",
                                        "the new column name box will be autofilled with a suggested name if a matching term is found in the",
-                                       "terminology. This term may be changed. Press \"Rename\" to update. Multiple columns may be renamed.",
+                                       "ontology. This term may be changed. Press \"Rename\" to update. Multiple columns may be renamed.",
                                        "When finished, press \"Next.\""
                                      )
                                    ), 
@@ -116,16 +128,16 @@ ui <- fluidPage(
                                      actionButton('columnSubmit', "Next", class = "next_button")
                                    )
                       ), 
-                      # ** Data Preview 
-                      mainPanel(
+                      # Data Preview 
+                      mainPanel(width = RIGHT_COLUMN_WIDTH,
                         tags$em(textOutput("updateColNamesPreviewText")),
-                        wellPanel(uiOutput("updateColNamesPreview"))
+                        wellPanel(dataTableOutput("updateSingleColumn"), style = "display: table")
                       )
              ),
              
              # Save Data ---------------------------------------------------------------
              tabPanel('Save Data', value = 'finalReport', 
-                      sidebarPanel(
+                      sidebarPanel(width = LEFT_COLUMN_WIDTH,
                         tags$img(src = 'Logo.png', align = "right", height = "100px"),
                         h4("Save Data"),
                         p("Enter a name for the output file and select an extension. Do not include the extension in the file name."),
@@ -135,11 +147,10 @@ ui <- fluidPage(
                         uiOutput("tab"), hr(),
                         actionButton('saveBack', "Back", class = "back_button")
                       ),
-                      # ** Data Preview 
-                      mainPanel(
+                      # Data Preview 
+                      mainPanel(width = RIGHT_COLUMN_WIDTH,
                         tags$em(textOutput("saveDataPreviewText")),
-                        uiOutput("saveDataColNav"),
-                        wellPanel(shinycssloaders::withSpinner(DTOutput("saveDataPreview"), color = "#112446"))
+                        wellPanel(shinycssloaders::withSpinner(uiOutput("saveDataPreview"), color = "#112446"))
                       )
              ),
              

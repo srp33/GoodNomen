@@ -8,7 +8,7 @@ output$selectedOntology <- renderUI({
   HTML(paste("<b>Selected Ontology: </b>",  (a(href = urlToOpen, values$ontName)), collapse = "<BR>"))
 })
 
-# Show widget for changing ontology
+# Build widget for changing ontology
 observeEvent(input$changeOntology, {
   title <- "Change the Ontology"
   
@@ -31,17 +31,15 @@ observeEvent(input$changeOntology, {
   )
 })
 
-# Show widget for selecting column to standardize
+# Build widget for selecting column to standardize
 output$editThisColumnSelector <- renderUI({
   selectizeInput(
     'editThisColumn', 
     label = "Select Column to Standardize:", 
-    choices = c("", columns()),
-    selected = values$lastSelectedEditColumn,
-    options = list(placeholder = 'Select column or start typing...',
-                   closeAfterSelect = TRUE))
+    choices = columns(), selected = values$lastSelectedEditColumn)
 })
 
+# Include source code for automatching and manual matching
 source('automatch.R', local = TRUE)
 source('manualMatch.R', local = TRUE)
 
@@ -54,26 +52,7 @@ output$editDataPreviewText <- renderText({
   }
 })
 
-# Display data (either all of the data or a single column if the user has selected a column to update)
-output$editDataPreview <- renderUI({
-  if (!is.null(values$dataset)) {
-    if (!is.null(input$editThisColumn) && input$editThisColumn %in% colnames(values$dataset)) {
-      DTOutput("singleColumn")
-    } else {
-      output <- tagList()
-      output[[1]] <- setColumnNavigation("editData")
-      output[[2]] <- DTOutput("editDataAll")
-      output
-    }
-  }
-})
-
-# Display a single column
+# Prepare a single column to display
 output$singleColumn <- renderDT({
   datatable(values$dataset[, input$editThisColumn], options = list(pageLength = 10), rownames = F)
-})
-
-# Display all of the data
-output$editDataAll <- renderDT({
-  dataPreview()
 })

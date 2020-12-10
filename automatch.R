@@ -1,13 +1,15 @@
 # Automatch ---------------------------------------------------------------
+
+# Before letting the user automatch, ensure that an onotology has been selected and a column to edit
+output$automatch <- renderUI({
+  if (input$ontologySelector != "" && !is.null(input$ontologySelector) && input$editThisColumn != "" && !is.null(input$editThisColumn)) {
+    actionButton('automatch', label = div("Automatch", helpButton("Matches will be found based on synonyms in the selected ontology")), width = "100%")
+  }
+})
+
+# Search for matches and build widget
 observeEvent(input$automatch, ignoreInit = T, {
   values$automatchResult <- list()
-  
-  # Disable the buttons while the matches are loading.
-  disable("editThisColumn") # select box
-  disable("automatch") # automatch button
-  disable("manual") # standardize manually button
-  disable("editBack") # back button
-  disable("editNext") # next button
   
   # If the column is not selected, throw an error. Otherwise, continue.
   if (is.null(input$editThisColumn) || input$editThisColumn == "") {
@@ -17,83 +19,89 @@ observeEvent(input$automatch, ignoreInit = T, {
     title <- "Review Matches"
   }
   
+  # Show information modal
+  show_modal_spinner(spin = "spring", color = "#112446",
+                     text = p("To identify matching terms, we are pulling all standardized terms from the ontology you selected.",
+                              "Thank you for your patience."))
+  
   # Identify matches
   uniqueTerms <- unique(values$dataset[[input$editThisColumn]])
-  sdm <- identifyMatches(uniqueTerms)
+  sdm <- as.data.frame(identifyMatches(uniqueTerms))
   
-  matches <- as.data.frame(select(sdm, c(TestTerm, OntologyTerm)) %>%
-                             rename(`Current Term` = TestTerm) %>%
-                             rename(`Standardized Term` = OntologyTerm) %>%
-                             mutate(Accept = TRUE))
-  
-  values$matches <- matches[!(matches$`Current Term` == matches$`Standardized Term`),]
+  values$matches <- dplyr::select(sdm, -Score) %>%
+    dplyr::rename(`Current Term` = TestTerm) %>%
+    dplyr::rename(`Standardized Term` = OntologyTerm) %>%
+    dplyr::filter(`Current Term` != `Standardized Term`) %>%
+    dplyr::mutate(Accept = TRUE)
+    
  
   # Sort the table alphabetically
-  values$matches <- matches[order(matches$`Standardized Term`),]
+  values$matches <- values$matches[order(values$matches$`Standardized Term`),]
   
   # Output the table
   if (nrow(values$matches) > 0) {
-    if (length(matches) > 0) {
-      content <- tagList()
-      content[[1]] <- p(
-        paste(
-          "The following matches were found based on the terminology.",
-          "Accept a match by checking the box in the row.",
-          "Press \"Save\" to apply these changes to your data and close this window.",
-          "If a match is accepted, all occurrences of the current term will be changed",
-          "to the standardized term."
-        )
+    content <- tagList()
+    content[[1]] <- p(
+      paste(
+        "The following matches were found based on the terminology.",
+        "Accept a match by checking the box in the row.",
+        "Press \"Save\" to apply these changes to your data and close this window.",
+        "If a match is accepted, all occurrences of the current term will be changed",
+        "to the standardized term."
       )
-      content[[2]] <- actionButton('selectAll', label = "Select All")
-      content[[3]] <- actionButton('deselectAll', label = "Deselect All")
-      content[[4]] <- br()
-      content[[5]] <- br()
-      content[[6]] <- uiOutput("automatchTable")
-      content[[7]] <- br()
-      content[[8]] <- actionButton('automatchSave', label = "Save")
-      content[[9]] <- actionButton('automatchClose', label = "Cancel", class = "secondary_button")
-      content[[10]] <- tags$head(tags$style(
-        "#automatchModal .modal-footer{ display:none}"
-      ))
-    } else {
-      content <- p("No matches found.")
-    }
+    )
+    content[[2]] <- actionButton('selectAll', label = "Select All")
+    content[[3]] <- actionButton('deselectAll', label = "Deselect All")
+    content[[4]] <- br()
+    content[[5]] <- br()
+    content[[6]] <- uiOutput("automatchTable")
+    content[[7]] <- br()
+    content[[8]] <- actionButton('automatchSave', label = "Save")
+    content[[9]] <- actionButton('automatchClose', label = "Cancel", class = "secondary_button")
+    content[[10]] <- tags$head(tags$style(
+      "#automatchModal .modal-footer{ display:none}"
+    ))
   } else {
-    content <- p("The terms in this column are already standardized or there were no terms to standardize.")
+    content <- p("The terms in this column are already standardized or there were no matches found.")
   }
   
   showModal(
     modalDialog(
       content,
       title = title,
-      footer = modalButton("Close"),
+      footer = NULL,
       size = "l"
     )
   )
   
   renderAutoMatchTable()
-  
-  # Enable the buttons again.
-  enable("editThisColumn") # select box
-  enable("automatch") # automatch button
-  enable("manual") # standardize manually button
-  enable("editBack") # back button
-  enable("editNext") # next button
 })
 
 # Select all matches
 observeEvent(input$selectAll,{
   values$matches[,3] <- rep(TRUE, nrow(values$matches))
-  values$selectedPushed <- TRUE
   renderAutoMatchTable()
 })
 
 # Deselect all matches
 observeEvent(input$deselectAll,  {
   values$matches[,3] <- rep(FALSE, nrow(values$matches))
-  values$deselectedPushed <- TRUE
   renderAutoMatchTable()
 })
+
+
+# Generate one row at a time for the automatch table
+autoMatchModule <- function(current, standard, booleanValue){
+  currentString <- str_replace_all(current, regex("\\W+"), " ")
+  ns <- NS(currentString)
+  tagList(
+    fluidRow(
+      column(width = AUTOMATCH_COLUMN_WIDTH, p(current, style = "padding:9px")),
+      column(width = AUTOMATCH_COLUMN_WIDTH, p(standard, style = "padding:9px")),
+      column(width = AUTOMATCH_COLUMN_WIDTH, checkboxInput(ns("checkBox"), value = booleanValue, label = NULL), style = "height:9px;")
+    )
+  )
+}
 
 # Show all matches found
 renderAutoMatchTable <- function(){
@@ -101,9 +109,9 @@ renderAutoMatchTable <- function(){
     tagList(
       tagList(
         fluidRow(
-          column(width = 2, align = "center", h4("Current Term")),
-          column(width = 3, h4("Standardized Term")),
-          column(width = 2, h4("Accept?"))
+          column(width = AUTOMATCH_COLUMN_WIDTH, h4("Current Term", style = "padding:9px")),
+          column(width = AUTOMATCH_COLUMN_WIDTH, h4("Standardized Term", style = "padding:9px")),
+          column(width = AUTOMATCH_COLUMN_WIDTH, h4("Accept?"), style = "padding:9px")
         )
       ),
       lapply(1:nrow(values$matches), function(i) {
@@ -113,41 +121,19 @@ renderAutoMatchTable <- function(){
   })
 }
 
-# Listeners for the automatch table module
-automatchTableListener <- function(input, output, session, modID){
-  observeEvent(input$checkBox, {
-    if (values$deselectedPushed == FALSE && values$selectedPushed == FALSE) {
-      if (input$checkBox == FALSE) {
-        values$matches[modID,3] <- FALSE
-      } else if (input$checkBox == TRUE) {
-        values$matches[modID,3] <- TRUE
-      }
-    } else {
-      values$numTimesClicked = values$numTimesClicked + 1
-    }
-  })
-  
-  # Generate the automatch table module and connect the listener (see automatchTableListener)
-  observe({
-    if (!is.null(values$matches)) {
-      lapply(1:nrow(values$matches), function(i) {
-        callModule(automatchTableListener, values$matches[i,1],i)
-      })
-    }
-  })
-  
-  # Listener to control the select all and deselect all button
-  observe({
-    if (values$numTimesClicked >= nrow(values$matches)) {
-      values$numTimesClicked <- 0
-      values$selectedPushed = FALSE
-      values$deselectedPushed = FALSE
-    }
-  })
-}
-
 # Update data based on matches selected 
 observeEvent(input$automatchSave, ignoreInit = T, {
+  # Find which matches were accepted by the user
+  # Reactive variables have some limitations, one being that you cannot perform functions on a vector of reactive variables
+  # For loops can be used here instead to go through the rows of the matches table and see if the box was checked
+  checks <- c()
+  nameSpaces <- str_replace_all(values$matches[,1], regex("\\W+"), " ")
+  for (name in nameSpaces) {
+    checkBox <- input[[paste0(name, "-checkBox")]]
+    checks <- c(checks, checkBox)
+  }
+  values$matches[,3] <- checks
+  
   if (length(which(values$matches[,3])) > 0) {
     # Change dataset table values to reflect changes made by editor
     values$lastSelectedEditColumn <- input$editThisColumn
@@ -173,6 +159,21 @@ observeEvent(input$automatchSave, ignoreInit = T, {
       eval(parse(text = automatchingText))
       values$dataset <- datasetInput
       masterText <<- paste0(masterText, "\n", automatchingText)
+      
+      rawStrings <- values$matches$`Current Term`[accepted]
+      preferredTerms <- values$matches$`Standardized Term`[accepted]
+      rows <- NULL
+      # Some preferred terms map to multiple URIs, so a for loop is necessary instead of more condensed statements
+      for (i in 1:length(rawStrings)) {
+        rawString <- rawStrings[i]
+        type <- columnNameOfChangedTerms
+        preferredTerm <- preferredTerms[i]
+        uri <- values$ids[which(values$preferred == preferredTerm)][1]
+        row <- c(rawString, type, preferredTerm, uri)
+        names(row) <- c("Raw_String", "Type", "Preferred_Term", "URI")
+        rows <- rbind(rows, row)
+      }
+      masterChanges <<- rbind(masterChanges, rows)
     }
   }
   removeModal()

@@ -5,15 +5,13 @@ output$editColumnSelector <- renderUI({
   selectizeInput(
     'editColumn', 
     label = "Specify Column to Rename:", 
-    choices = c("", columns()),
-    options = list(placeholder = 'Select column or start typing...',
-                   closeAfterSelect = TRUE, create = TRUE))
+    choices = columns())
 })
 
 # Display "rename" button when a column and new name have been selected
 output$columnRenameButton <- renderUI({
   if (!is.null(input$newColumn) && input$newColumn != "") {
-    actionButton('columnRename', "Rename")
+    actionButton('columnRename', "Rename", width = "100%")
   }
 })
 
@@ -24,7 +22,7 @@ observe({
     
     show_modal_spinner(spin = "spring", color = "#112446",
                        text = paste0("To help you standardize your data, we are finding recommended column names from the ontology you 
-                                       selected. Feel free to write your own column names as well. Thank you for your patience."))
+                                       selected. Thank you for your patience."))
     
     sdm <- identifyMatches(input$editColumn)
     newColNames <- sdm$OntologyTerm
@@ -76,28 +74,11 @@ output$updateColNamesPreviewText <- renderText({
   }
 })
 
-# Display the data
-output$updateColNamesPreview <- renderUI({
-  if (!is.null(values$dataset)) {
-    if (!is.null(input$editColumn) && input$editColumn %in% colnames(values$dataset)) {
-      DTOutput("updateSingleColumn")
-    } else {
-      output <- tagList()
-      output[[1]] <- setColumnNavigation("updateColNames")
-      output[[2]] <- DTOutput("updateColNamesAll")
-      output
-    }
-  }
-})
-
 # Display the column the user has selected to rename
 output$updateSingleColumn <- renderDT({
-  if (input$editColumn %in% colnames(values$dataset)) {
-    datatable(values$dataset[, input$editColumn], options = list(pageLength = 10), rownames = F)
+  if (!is.null(input$editColumn)) {
+    if (input$editColumn %in% colnames(values$dataset)) {
+      datatable(values$dataset[, input$editColumn], options = list(pageLength = 10), rownames = F)
+    }
   }
-})
-
-# Display the data
-output$updateColNamesAll <- renderDT({
-  dataPreview()
 })

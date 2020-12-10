@@ -14,9 +14,12 @@ library(tools)
 library(writexl)
 library(readxl)
 library(httr)
-library(tidytext) # https://www.tidytextmining.com/index.html
-data(stop_words)
+library(tidytext)
 library(dplyr)
 library(readr)
 library(tidyr)
-library(stringdist)"
+library(stringdist)
+library(feather)
+data(stop_words)"
+
+eval(parse(text = loadLibraries))

@@ -1,22 +1,26 @@
 # Save Data ---------------------------------------------------------------
 
-# Name Output File 
+# Build the buttons for downloading output files
 output$downloadButtons <- renderUI({
   if (!is.null(values$dataset)) {
     output <- tagList()
     output[[1]] <- downloadButton('editReport', width = "100%", label = div("Download Output File", 
                                                                             helpButton("Output file contains updated data.")),
                                   style = "display: block; color: #fff; background-color: #337ab7; border-color: #2e6da4; margin-bottom: 9px;")
-    output[[2]] <- downloadButton('script1', width = "100%", label = div("Download R Script",
-                                                                         helpButton(paste("RScript contains all of the commands", 
+    output[[2]] <- downloadButton('script', width = "100%", label = div("Download R Script",
+                                                                         helpButton(paste("R Script contains all of the commands", 
                                                                                           "necessary to create the output file from", 
                                                                                           "the original file."))),
                                   style = "display: block; color: #fff; background-color: #2ca25f; border-color: #2ca25f; margin-bottom: 9px;")
+    output[[3]] <- downloadButton('changes', width = "100%", label = div("Download Changes",
+                                                                         helpButton(paste("File contains a record of all of the changes", 
+                                                                                          "made to the data."))),
+                                  style = "display: block; color: #fff; background-color: #6baed6; border-color: #6baed6;")
     output # This ensures that the buttons will appear
   }
 })
 
-# Download Output File
+# Download output file
 output$editReport <- downloadHandler(
   filename = function() {
     fileName <- if (input$outputFileName == "") "shiny_output" else input$outputFileName
@@ -33,15 +37,12 @@ output$editReport <- downloadHandler(
   }
 )
 
-# Download R script. Format is downloadHandler(filename, content)
-output$script1 <- downloadHandler(
+# Download R script
+output$script <- downloadHandler(
   filename = function() {
     paste0(input$outputFileName, "_R_script.R")
   }, content = function(file) {
-    fileName <- if (input$outputFileName == "") "shiny_output" else input$outputFileName
     thisExtension <- if (nchar(input$extension) == 0) extension() else input$extension
-    fullFileName <- paste0(fileName, ".R")
-    
     # ADD TEXT TO SCRIPT for saving the file
     masterText <<- paste0(masterText, "\n", "\n# Save file\n",
                           "if (!is.null(extraHeaders)) {\n",
@@ -54,21 +55,23 @@ output$script1 <- downloadHandler(
     showNotification(paste0("Your file was successfully saved."))
   })
 
+# Download changes
+output$changes <- downloadHandler(
+  filename = function() {
+    paste0(input$outputFileName, "_changes.tsv")
+  }, content = function(file) {
+    write_tsv(as.data.frame(masterChanges), file)
+    showNotification(paste0("Your file was successfully saved."))
+  })
+
 # Message before data is ready to be displayed
 output$saveDataPreviewText <- renderText({
   if (is.null(values$dataset)) {
     "After you have uploaded a file, a preview of your data will appear here."
   } else {NULL}
 })
-
-# Navigate to page
-output$saveDataColNav <- renderUI({
-  if (!is.null(values$dataset)) {
-    setColumnNavigation("saveData")
-  }
-})
-
+  
 # Display data
-output$saveDataPreview <- renderDT({
-  dataPreview()
-})
+output$saveDataPreview <- renderText(paste0("Thank you for using Good Nomen! You made ", if (!is.null(masterChanges)) nrow(masterChanges) else "no",  " unique changes to your data. ",
+                                            "Please use the controls on the left to download the output files."))
+
