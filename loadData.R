@@ -9,7 +9,7 @@ readInputFile <- function(inFile) {
   masterText <<- NULL
   masterText <<- paste0(masterText,  installPackages, "\n\n", loadLibraries, "\n\n", text) 
   
-  values$datasetWithColTypes <- do.call(paste0("read_", extensionsMap[[fileExt]]), list(inFile$datapath))#, "col_names" = FALSE))
+  values$datasetWithColTypes <- do.call(paste0("read_", extensionsMap[[fileExt]]), list(inFile$datapath))
   datasetWithoutColTypes <- as.data.frame(values$datasetWithColTypes) %>%
     mutate_all(as.character)
   datasetWithoutColTypes <- rbind(colnames(datasetWithoutColTypes), datasetWithoutColTypes)
