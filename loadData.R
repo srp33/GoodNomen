@@ -217,8 +217,8 @@ output$ontologySelector <- renderUI({
         ontologyTibble <- separate(ontologyTibble, value, into =  c("Acronym", "FullName"), sep = "\\s", extra = "merge")
         
         # Access recommended ontologies through Bioportal
-        if (any(is.na(values$datasetInput))) {
-          values$datasetInput[is.na(values$datasetInput)] <- "Null"
+        if (any(is.na(values$datasetWithColTypes))) {
+          values$datasetWithColTypes[is.na(values$datasetWithColTypes)] <- "Null"
         }
         rURL <- getRecommendedOntologies(values$datasetWithColTypes)
         internetTester = curl::has_internet()
