@@ -2,7 +2,7 @@
 
 # Introduction
 
-*GoodNomen* enables researchers to standardize tabular data against ontologies from [BioPortal](https://bioportal.bioontology.org/) via a user-friendly interface. Column names and data values can be standardized.
+*Good Nomen* enables researchers to standardize tabular data against ontologies from [BioPortal](https://bioportal.bioontology.org/) via a user-friendly interface. Data values and column names can be standardized.
 
 # Demo Version
 
