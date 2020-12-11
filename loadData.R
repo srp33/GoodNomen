@@ -9,7 +9,11 @@ readInputFile <- function(inFile) {
   masterText <<- NULL
   masterText <<- paste0(masterText,  installPackages, "\n\n", loadLibraries, "\n\n", text) 
   
-  do.call(paste0("read_", extensionsMap[[fileExt]]), list(inFile$datapath, "col_names" = FALSE))
+  values$datasetWithColTypes <- do.call(paste0("read_", extensionsMap[[fileExt]]), list(inFile$datapath))
+  datasetWithoutColTypes <- as.data.frame(values$datasetWithColTypes) %>%
+    mutate_all(as.character)
+  datasetWithoutColTypes <- rbind(colnames(datasetWithoutColTypes), datasetWithoutColTypes)
+  return(as_tibble(datasetWithoutColTypes))
 }
 
 # After uploading file, select row to use as column names (and number of header rows)
@@ -48,7 +52,7 @@ setColNames <- function(startRow, colNameRow) {
 observeEvent(input$userFile, ignoreInit = T, {
   withProgress(message = "Initializing Elements", {
     output$inputError <- tryCatch({
-      values$datasetInput <<- readInputFile(input$userFile)
+      values$datasetInput <- readInputFile(input$userFile)
       if (any(is.na(colnames(values$datasetInput)))) {
         colnames(values$datasetInput)[is.na(colnames(values$datasetInput))] <- "Null2"
       }
@@ -136,13 +140,11 @@ observeEvent(input$headerPreview_rows_selected, {
 # Get recommended ontologies from BioPortal
 getRecommendedOntologies <- function(dataset) {
   testValues <- c()
-  # ignore header line when getting data for recommender
-  sampleDataset <- dataset[2:nrow(dataset),]
+  sampleDataset <- dataset[, !sapply(dataset, function(x) length(x) == length(unique(x)))]
+  sampleDataset <- sampleDataset[, !sapply(sampleDataset, is.numeric) & !sapply(sampleDataset, is.logical) & !sapply(sampleDataset, is.Date) & !sapply(sampleDataset, is.POSIXct)] 
   for (columnName in colnames(sampleDataset)) {
-    columnData <- sampleDataset[[columnName]]
-    if (length(unique(columnData)) != length(columnData)) {
-      testValues <- c(testValues, sample(unique(columnData), if (length(unique(columnData)) >= NUM_SAMPLES_FROM_COLS) NUM_SAMPLES_FROM_COLS else length(unique(columnData))))
-    }
+    columnData <- c(columnName, sampleDataset[[columnName]])
+    testValues <- c(testValues, sample(unique(columnData), if (length(unique(columnData)) >= NUM_SAMPLES_FROM_COLS) NUM_SAMPLES_FROM_COLS else length(unique(columnData))))
   }
   if (length(testValues) > 1000) {
     testValues <- testValues[1:1000]
@@ -215,15 +217,15 @@ output$ontologySelector <- renderUI({
         ontologyTibble <- separate(ontologyTibble, value, into =  c("Acronym", "FullName"), sep = "\\s", extra = "merge")
         
         # Access recommended ontologies through Bioportal
-        if (any(is.na(values$datasetInput))) {
-          values$datasetInput[is.na(values$datasetInput)] <- "Null"
+        if (any(is.na(values$datasetWithColTypes))) {
+          values$datasetWithColTypes[is.na(values$datasetWithColTypes)] <- "Null"
         }
-        rURL <- getRecommendedOntologies(values$datasetInput)
+        rURL <- getRecommendedOntologies(values$datasetWithColTypes)
         internetTester = curl::has_internet()
         if (!internetTester) {
           # If the URL is broken,try again a few times
           for (i in 1:NUM_TEST_TIMES) {
-            rURL <- getRecommendedOntologies(values$datasetInput)
+            rURL <- getRecommendedOntologies(values$datasetWithColTypes)
             if (url.exists(rURL)) {
               break;
             }

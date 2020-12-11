@@ -28,7 +28,7 @@ LEFT_COLUMN_WIDTH <- 8 # Number between 1 and 12
 RIGHT_COLUMN_WIDTH <- 4 # Number between 1 and 12 (left + right = 12)
 AUTOMATCH_COLUMN_WIDTH <- 4 # Number between 1 and 12
 
-listOfLibrariesUsed <- c("DT", "RCurl", "rhandsontable", "rjson", "shiny", "shinyBS", "shinycssloaders", "shinyjs",
+listOfLibrariesUsed <- c("DT", "RCurl", "rhandsontable", "rjson", "shiny", "shinyBS", "shinycssloaders", "shinyjs", "lubridate",
                          "tidyverse", "tools", "writexl", "readxl", "httr", "tidytext", "dplyr", "readr", "tidyr", "stringdist", "feather")
 
 
