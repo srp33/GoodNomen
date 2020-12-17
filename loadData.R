@@ -150,6 +150,9 @@ getRecommendedOntologies <- function(dataset) {
     testValues <- testValues[1:1000]
   }
   testString <- toString(testValues)
+  if (testString == "") {
+    return(NULL)
+  }
   testString <- URLencode(testString, reserved = TRUE) # Why encode? Characters in a URL other than the English alphanumeric characters and - _ . ~ should be encoded as % plus a two-digit hexadecimal representation, and any single-byte character can be so encoded. The standard refers to this as 'percent-encoding'.
   rURL <- "http://data.bioontology.org/recommender?"
   response <- POST(rURL, body = list(input = testString, apikey = API_KEY, display_links = "false", display_context = "false"))
@@ -236,34 +239,34 @@ output$ontologySelector <- renderUI({
         else {
           # Get the acronym for the top three recommended ontologies 
           recommenderDF <- NULL
-          tryCatch({
-            res <- R.utils::withTimeout(  {
-              dataFrameRecommend <- content(rURL, "parsed")
-              recommenderDF <- as.data.frame(t(sapply(dataFrameRecommend,c)))
-            }, timeout = TIMEOUT_TIME)
-          }, error = function(er) {
-          }, finally = {
-            if (is.null(recommenderDF)) {
-              timeOutError()
+          if (!is.null(rURL)) {
+            tryCatch({
+              res <- R.utils::withTimeout(  {
+                dataFrameRecommend <- content(rURL, "parsed")
+                recommenderDF <- as.data.frame(t(sapply(dataFrameRecommend,c)))
+              }, timeout = TIMEOUT_TIME)
+            }, error = function(er) {
+            }, finally = {
+              if (is.null(recommenderDF)) {
+                timeOutError()
+              }
+            })
+            recTibble <- as_tibble(recommenderDF)
+            if (ncol(recTibble) > 1) {
+              recTibbleData <- sapply(unnest(select(recTibble, ontologies), ontologies), unlist)
+              recTibble <- recTibbleData[seq(1, length(recTibbleData), by = 3)]
+              
+              # If there are fewer than three elements in the recommended ontology, set the NUM_RECOMMENDED_ONTOLOGIES to the size of the list created
+              if (length(recTibble) < NUM_REC_ONTO) {NUM_REC_ONTO <<- length(recTibble)}
+              
+              recommendedOntologies <- recTibble[1:NUM_REC_ONTO] 
+              for (i in 1:NUM_REC_ONTO) {
+                thisTerm <- filter(ontologyTibble, Acronym == recommendedOntologies[i]) %>% 
+                  select(FullName)
+                recommendedOntologies <- replace(recommendedOntologies, i, paste(recommendedOntologies[i], unlist(unname(thisTerm)), 
+                                                                                 " ", collapse = " "))
+              }
             }
-          })
-          recTibble <- as_tibble(recommenderDF)
-          if (ncol(recTibble) > 1) {
-            recTibbleData <- sapply(unnest(select(recTibble, ontologies), ontologies), unlist)
-            recTibble <- recTibbleData[seq(1, length(recTibbleData), by = 3)]
-            
-            # If there are fewer than three elements in the recommended ontology, set the NUM_RECOMMENDED_ONTOLOGIES to the size of the list created
-            if (length(recTibble) < NUM_REC_ONTO) {NUM_REC_ONTO <<- length(recTibble)}
-            
-            recommendedOntologies <- recTibble[1:NUM_REC_ONTO] 
-            for (i in 1:NUM_REC_ONTO) {
-              thisTerm <- filter(ontologyTibble, Acronym == recommendedOntologies[i]) %>% 
-                select(FullName)
-              recommendedOntologies <- replace(recommendedOntologies, i, paste(recommendedOntologies[i], unlist(unname(thisTerm)), 
-                                                                               " ", collapse = " "))
-            }
-          } else {
-            recommendedOntologies <<- ""
           }
         }
         values$recommendedOntologies <<- recommendedOntologies
@@ -271,7 +274,14 @@ output$ontologySelector <- renderUI({
     })
     
     remove_modal_spinner()
-    if (!is.null(recommendedOntologies)) {
+    # If no recommended ontologies were found, tell the user
+    if (is.null(recommendedOntologies)) {
+      showModal(modalDialog(title = "No recommended ontologies found",
+                            p("We could not find any information in your file to use for recommending an ontology.",
+                              "Please select an ontology manually."),
+                            footer = modalButton("Close"),
+                            easyClose = TRUE))
+    }
     selectizeInput('ontologySelector',
                    label = div(
                      "Select Ontology:",
@@ -280,7 +290,6 @@ output$ontologySelector <- renderUI({
                                   'All Ontologies' = listOfOntNames),
                    options = list(placeholder = "Select ontology or start typing...",
                                   closeAfterSelect = TRUE))
-    }
   } 
 })
 
