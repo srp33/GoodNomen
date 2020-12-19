@@ -10,6 +10,8 @@ masterChanges <- NULL
 # readInputFileText will be modified based on whether or not the user chooses to use a row other than the first row as headers
 readInputFileText <- NULL
 
+listOfLibrariesUsed <- c("tidyverse")
+
 # Reactive values
 values <- reactiveValues(datasetInput = NULL, dataset = NULL, extraHeaders = NULL, headerText = NULL,
                          extension = "", terminology = NULL, lastSelectedEditColumn = "",

@@ -24,11 +24,8 @@ MAX_HEADERS <- 5 # Max number of header rows uploaded data can have
 NUM_TEST_TIMES <- 2 # If the URL doesn't work, test it again this many times
 SPINNER_TYPE <- 8 # Any number between 1 and 8. 8 is the circle spinner. (To see the different spinner options, go to https://projects.lukehaas.me/css-loaders/)
 TIMEOUT_TIME <- 300 # Seconds
-LEFT_COLUMN_WIDTH <- 8 # Number between 1 and 12
-RIGHT_COLUMN_WIDTH <- 4 # Number between 1 and 12 (left + right = 12)
+LEFT_COLUMN_WIDTH <- 6 # Number between 1 and 12
+RIGHT_COLUMN_WIDTH <- 6 # Number between 1 and 12 (left + right = 12)
 AUTOMATCH_COLUMN_WIDTH <- 4 # Number between 1 and 12
-
-listOfLibrariesUsed <- c("DT", "RCurl", "rhandsontable", "rjson", "shiny", "shinyBS", "shinycssloaders", "shinyjs", "lubridate",
-                         "tidyverse", "tools", "writexl", "readxl", "httr", "tidytext", "dplyr", "readr", "tidyr", "stringdist", "feather")
-
-
+NUM_DISPLAY_ROWS <- 5 # Number of rows to display with upload
+NUM_DISPLAY_COLS <- 5 # Number of columns to display with upload

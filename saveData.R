@@ -1,4 +1,15 @@
 # Save Data ---------------------------------------------------------------
+# Widget for output file name
+output$outputFileNameUI <- renderUI({
+  textInput('outputFileName',
+            label = div(
+              "Output File Name (without extension):",
+              helpButton("Enter a name for the output file (do not include extension).")
+            ),
+            value = paste0(
+              substr(input$userFile, 0, (nchar(input$userFile) - if (extension() == ".xlsx") 5 else 4)), "_GoodNomen"
+            )[1])
+})
 
 # Build the buttons for downloading output files
 output$downloadButtons <- renderUI({
@@ -58,7 +69,7 @@ output$script <- downloadHandler(
 # Download changes
 output$changes <- downloadHandler(
   filename = function() {
-    paste0(input$outputFileName, "_changes.tsv")
+    paste0(input$outputFileName, "_Changes.tsv")
   }, content = function(file) {
     write_tsv(as.data.frame(masterChanges), file)
     showNotification(paste0("Your file was successfully saved."))

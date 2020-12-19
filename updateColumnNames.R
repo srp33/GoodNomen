@@ -61,6 +61,20 @@ observeEvent(input$columnRename, ignoreInit = T, {
     
     # ADD TEXT TO SCRIPT for modifying column names
     masterText <<- paste0(masterText, "\n", changeColumnText)
+    
+    # Keep track of changes
+    originalTerm <- input$editColumn
+    source <- "Column name"
+    ontologyTerm <- newColumn
+    uri <- values$ids[which(values$preferred == ontologyTerm)]
+    if (length(uri) == 0) {
+      uri <- NA
+    } else {
+      uri <- uri[1]
+    }
+    row <- c(originalTerm, source, NA, ontologyTerm, uri)
+    names(row) <- c("Original_Term", "Source", "Column_Name", "Ontology_Term", "Ontology_Term_URI")
+    masterChanges <<- rbind(masterChanges, row)
   }
   showNotification(paste0("Column \"", input$editColumn, "\" has been renamed to \"", input$newColumn, ".\""))
 })
