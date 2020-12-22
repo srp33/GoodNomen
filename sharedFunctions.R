@@ -174,7 +174,7 @@ observeEvent(input$resetAndSave, {
   updateSelectizeInput(session, 'ontologySelector', selected = values$ontName) #This updates the first drop down menu with your new selection
   
   show_modal_spinner(spin = "spring", color = "#112446",
-                     text = p("Loading new ontology. Please be patient, this shouldn't take long."),)
+                     text = p("Loading new ontology. Please be patient. This shouldn't take long."),)
   
   downloadURL <- sprintf(paste("http://data.bioontology.org/ontologies/", values$ontologyAcronym, "/download?download_format=csv&display_links=false&apikey=", API_KEY, sep = ""))
   
@@ -182,7 +182,7 @@ observeEvent(input$resetAndSave, {
     removeModal()
     lockedOntologyError()
   } else {
-    removeModal()
     loadOntology()
+    removeModal()
   }
 })

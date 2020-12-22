@@ -2,6 +2,14 @@
 readInputFile <- function(inFile) {
   fileExt <- paste0(".", file_ext(gsub("\\\\", "/", inFile$datapath)))
   text <- paste0("# Please ensure that your terminology file (", inFile[1],") is in the same directory as this script before executing. Please also make sure that your R console is in the correct working terminal (use setwd() to change to the directory that your files are in).")
+  
+  if (fileExt == ".xls" | fileExt == ".xlsx") {
+    library(readxl)
+    library(writexl)
+    listOfLibrariesUsed <- c(listOfLibrariesUsed, "readxl", "writexl")
+    loadLibraries <- paste0(loadLibraries, "\nlibrary(readxl)\nlibrary(writexl)")
+  }
+  
   installPackages <- addLibrary(listOfLibrariesUsed)
   readInputFileText <<- paste0("datasetInput <- read_", extensionsMap[[fileExt]], "('", inFile$name, "', col_names = FALSE)")
   
@@ -33,6 +41,12 @@ setColNames <- function(startRow, colNameRow) {
     "} else {\n",
     "\tnewColsNames <- datasetInput[",colNameRow,",]\n",
     "}\n",
+    "if (colNameRow > startRow) {\n",
+    "\tstartRow <- startRow - 1\n",
+    "\tdatasetInput <- datasetInput[-",colNameRow,",]\n",
+    "\tdatasetInput <- rbind(extraHeaders[1,], datasetInput)\n",
+    "\textraHeaders <- extraHeaders[-1,]\n",
+    "}\n",
     "colnames(datasetInput) <- newColsNames\n",
     "datasetInput <- datasetInput[",startRow,":nrow(datasetInput),]"
   )
@@ -61,8 +75,6 @@ observeEvent(input$userFile, ignoreInit = T, {
       renderText("An error has been detected. Please verify that the file type matches the extension.")
     })
     
-    # Header selector must only be set when user first uploads file; otherwise, if the user selects the number of header 
-    # lines before the table renders, the box flickers back and forth between selection and default.
     output$headerSelector <- renderUI({
       selectInput(
         "header",
@@ -79,17 +91,6 @@ observeEvent(input$userFile, ignoreInit = T, {
     incProgress(1/9, detail = "header selector")
     incProgress(1/9, detail = "terminology selector")
     incProgress(1/9, detail = "column selector")
-    
-    output$outputFileNameUI <- renderUI({
-      textInput('outputFileName',
-                label = div(
-                  "Output File Name (without extension):",
-                  helpButton("Enter a name for the output file (do not include extension).")
-                ),
-                value = paste0(
-                  substr(input$userFile, 0, (nchar(input$userFile) - if (extension() == ".xlsx") 5 else 4)), "_standardized"
-                )[1])
-    })
     incProgress(1/9, detail = "file name selector")
     output$extensionSelector <- renderUI({
       selectExt <- if (grepl("xls", extension())) ".xlsx" else extension()
@@ -109,9 +110,9 @@ observeEvent(input$header, {
 
 # Show widget for selecting which row to use as header
 output$colnamesSelector <- renderUI({
-  if (!is.null(input$header) && as.numeric(input$header) > 1) {
+  if (!is.null(input$userFile)) {
     div(
-      tags$b("Please select the header row you would like to use as the column names."),
+      tags$b("Please select the row you would like to use as the column names."),
       DTOutput("headerPreview")
     )
   }
@@ -120,11 +121,13 @@ output$colnamesSelector <- renderUI({
 # Display options to use for column names
 output$headerPreview <- renderDT({
   datatable(
-    values$datasetInput[1:as.numeric(input$header),],
+    values$datasetInput[1:NUM_DISPLAY_ROWS,],
     rownames = FALSE,
     colnames = rep("", ncol(values$datasetInput)),
     selection = list(mode = "single", selected = c(1)),
-    options = list(dom = "t", scrollX = '300px', ordering = FALSE)
+    style = "bootstrap",
+    options = list(dom = "t", scrollX = '300px', ordering = FALSE,
+                   columnDefs = list(list(visible = TRUE, targets = 0:(NUM_DISPLAY_COLS - 1)), list(visible = FALSE, targets = "_all"))),
   )
 })
 
@@ -205,7 +208,7 @@ output$ontologySelector <- renderUI({
             }
           })
           bioportalOntologiesDataFrame <- data.frame(t(sapply(bioportalOntologies,c)))
-          bioportalOntologiesDataFrame$nameAndAcronymn = paste(bioportalOntologiesDataFrame$acronym, bioportalOntologiesDataFrame$name) # Makes a column with both acronym and name
+          bioportalOntologiesDataFrame$nameAndAcronymn = paste0(bioportalOntologiesDataFrame$acronym, " - ", bioportalOntologiesDataFrame$name) # Makes a column with both acronym and name
           listOfOntNames <<- bioportalOntologiesDataFrame[, ncol(bioportalOntologiesDataFrame)] # This accesses the last column of the dataframe
           write.table(listOfOntNames, file = ONTOLOGY_LIST_FILE_PATH, append = FALSE, quote = FALSE,
                       row.names = FALSE, col.names = FALSE)
@@ -220,9 +223,6 @@ output$ontologySelector <- renderUI({
         ontologyTibble <- separate(ontologyTibble, value, into =  c("Acronym", "FullName"), sep = "\\s", extra = "merge")
         
         # Access recommended ontologies through Bioportal
-        if (any(is.na(values$datasetWithColTypes))) {
-          values$datasetWithColTypes[is.na(values$datasetWithColTypes)] <- "Null"
-        }
         rURL <- getRecommendedOntologies(values$datasetWithColTypes)
         internetTester = curl::has_internet()
         if (!internetTester) {
@@ -327,10 +327,6 @@ observeEvent(input$buttonLoadThenNext, {
 
 # Display a summary of the data when file is uploaded
 output$uploadPreview <- renderText({
-  if (is.null(values$datasetInput)) {
-    "Please upload a file to standardize."
-  } else {
-    paste0("Thank you for uploading a file! We detected ", nrow(values$datasetInput), " rows and ", ncol(values$datasetInput), " columns. ",
+  paste0("Thank you for uploading a file! We detected ", nrow(values$datasetInput), " rows and ", ncol(values$datasetInput), " columns. ",
            "Please use the controls on the left to continue.")
-  }
 })

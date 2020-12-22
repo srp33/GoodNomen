@@ -1,5 +1,4 @@
 #Load libraries ----------------------------------------------------------
-loadLibraries <- "#Load Libraries
 library(DT)
 library(RCurl)
 library(rhandsontable)
@@ -10,17 +9,14 @@ library(shinycssloaders)
 library(shinybusy)
 library(shinyjs)
 library(lubridate)
-library(tidyverse)
 library(tools)
-library(writexl)
-library(readxl)
 library(httr)
 library(tidytext)
-library(dplyr)
-library(readr)
-library(tidyr)
 library(stringdist)
 library(feather)
-data(stop_words)"
+data(stop_words)
+
+loadLibraries <- "# Load Libraries
+library(tidyverse)"
 
 eval(parse(text = loadLibraries))

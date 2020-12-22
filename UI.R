@@ -17,8 +17,7 @@ ui <- fluidPage(
   tags$head(
     tags$link(rel = "stylesheet", type = "text/css", href = "style.css"),
     tags$link(rel = "icon", type = "image/png", href = "Logo.png"),
-    tags$style("body { word-wrap: break-word; }"),
-    tags$style(HTML("hr {border-top: 1px solid #000000;}"))
+    tags$style("body { word-wrap: break-word; }")
   ),
   includeScript("www/reactive_preferences.js"),
   useShinyjs(),
@@ -37,13 +36,13 @@ ui <- fluidPage(
                                                multiple = FALSE, accept = names(extensionsMap), width = NULL, buttonLabel = "Browse...", placeholder = "No file selected"),
                                      textOutput("inputError"), tags$head(tags$style("#inputError {color: red;}")),
                                      uiOutput("headerSelector"),
-                                     uiOutput("colnamesSelector"),
+                                     uiOutput("colnamesSelector"), br(),
                                      uiOutput("ontologySelector"),
-                                     textOutput("error"), tags$head(tags$style("#error {color: red;}")), hr(),
+                                     textOutput("error"), tags$head(tags$style("#error {color: red;}")), br(),
                                      uiOutput("firstPageNext"), br(), br()), 
                         # Data Preview 
                         mainPanel(width = RIGHT_COLUMN_WIDTH,
-                          wellPanel(uiOutput("uploadPreview"))
+                          conditionalPanel(condition = 'input.header', wellPanel(uiOutput("uploadPreview")))
                         ))),
              
              # Edit Data (Auto/Manual) ---------------------------------------------------------------
@@ -57,20 +56,18 @@ ui <- fluidPage(
                                        "First select the name of the column containing the data you wish to edit.",
                                        "If you would like to automate the matching process, press \"Automatch.\"",
                                        "The data will be processed and then a pop-up window will appear and ask you to review the matches.",
-                                       "If you would like to manually update the data, press \"Standardize Manually.\"",
+                                       "If you would like to manually update the data, press \"Manual.\"",
                                        "A different pop-up window will appear with instructions on how to edit the data.",
                                        "When finished, press \"Next.\""
                                      )
                                    ), br(),
                                    htmlOutput("selectedOntology"),
                                    actionButton('changeOntology', label = div("Change Ontology", helpButton("Click to change which ontology you want to use")),
-                                                style = "color: #fff; background-color: #6baed6; border-color: #6baed6;", width = "100%"), br(), br(),
+                                                style = "color: #fff; background-color: #a1d99b; border-color: #a1d99b;", width = "100%"), br(), br(),
                                    uiOutput("editThisColumnSelector"),
-                                   uiOutput("automatch"),
-                                   uiOutput("manual"),
-                                   #fluidRow(column(width = 3, uiOutput("automatch")), 
-                                   #          column(width = 5, uiOutput("manual"))),
-                                   uiOutput("resetAndSave"), hr(),
+                                   fluidRow(column(width = 6, uiOutput("automatch")), 
+                                             column(width = 6, uiOutput("manual"))),
+                                   uiOutput("resetAndSave"), br(),
                                    uiOutput("cancelChangeOntology"),
                                    div(
                                      actionButton('editBack', "Back", css.class = "back_button", style = "color: #fff; background-color: #6baed6; border-color: #6baed6;"),
@@ -79,7 +76,6 @@ ui <- fluidPage(
                       mainPanel(width = RIGHT_COLUMN_WIDTH,
                         tags$em(textOutput("editDataPreviewText")),
                         wellPanel(dataTableOutput('singleColumn'), style = "display: table")
-                        #wellPanel(div(style = 'overflow-x: scroll', dataTableOutput('singleColumn')))
                       )
              ),
              
@@ -123,7 +119,7 @@ ui <- fluidPage(
                                      HTML(paste('<p color="black">The selected new column name is already being used as a column name.", 
                                                 "Please close this window and select a different name.</p>')),
                                      tags$head(tags$style("#equalModal {color: red;}"))
-                                   ), hr(), div(
+                                   ), br(), div(
                                      actionButton('columnBack', "Back", class = "back_button"),
                                      actionButton('columnSubmit', "Next", class = "next_button")
                                    )
@@ -144,7 +140,7 @@ ui <- fluidPage(
                         uiOutput('outputFileNameUI'),
                         uiOutput('extensionSelector'),
                         uiOutput("downloadButtons"),
-                        uiOutput("tab"), hr(),
+                        uiOutput("tab"), br(),
                         actionButton('saveBack', "Back", class = "back_button")
                       ),
                       # Data Preview 
@@ -160,12 +156,14 @@ ui <- fluidPage(
                         column(width = 2,
                                tags$img(src = 'Logo.png', height = "165px", align = "center")
                         ),
-                        column(width = 9,
+                        column(width = 10,
                                h4("Contact"),
-                               HTML(paste('<div>For questions and comments, please visit', 
-                                          '<a target="_blank", href="https://piccolo.byu.edu/Contact.aspx">https://piccolo.byu.edu/Contact.aspx</a>.',
-                                          '<p>The source code for Good Nomen can be found at', 
-                                          '<a target="_blank", href="https://github.com/srp33/GoodNomen">https://github.com/srp33/GoodNomen</a>.</p></div>'))
+                               HTML(paste('<div>This app was created by the Piccolo Lab at Brigham Young University. Contact us ', 
+                                          '<a target="_blank", href="https://biology.byu.edu/piccolo-lab/contact">here.</a>',
+                                          '<p>The source code for Good Nomen can be found ', 
+                                          '<a target="_blank", href="https://github.com/srp33/GoodNomen">here.</a>',
+                                          'To report a bug or request a feature, go ',
+                                          '<a target="blank", href="https://github.com/srp33/GoodNomen/issues">here.</a></div>'))
                         )
                       )
              )

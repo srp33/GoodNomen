@@ -3,7 +3,7 @@
 # Before letting the user manual match, ensure that an onotology has been selected and a column to edit
 output$manual <- renderUI({
   if (input$ontologySelector != "" && !is.null(input$ontologySelector) && input$editThisColumn != "" && !is.null(input$editThisColumn)) {
-    actionButton('manual', label = div("Standardize Manually", helpButton("Update selected terms to manually chosen standardized term.")), width = "100%")
+    actionButton('manual', label = div("Manual", helpButton("Update selected terms to a manually chosen ontology term.")), width = "100%")
   }
 })
 
@@ -37,17 +37,17 @@ standardizeManually <- function() {
       masterText <<- paste0(masterText, manualText)
       
       # Keep track of changes
-      rawString <- item
-      type <- editThisColumn
-      preferredTerm <- newData
-      uri <- values$ids[which(values$preferred == preferredTerm)]
+      originalTerm <- item
+      source <- "Data value"
+      ontologyTerm <- newData
+      uri <- values$ids[which(values$preferred == ontologyTerm)]
       if (length(uri) == 0) {
         uri <- NA
       } else {
         uri <- uri[1]
       }
-      row <- c(rawString, type, preferredTerm, uri)
-      names(row) <- c("Raw_String", "Type", "Preferred_Term", "URI")
+      row <- c(originalTerm, source, editThisColumn, ontologyTerm, uri)
+      names(row) <- c("Original_Term", "Source", "Column_Name", "Ontology_Term", "Ontology_Term_URI")
       rows <- rbind(rows, row)
     }
   })

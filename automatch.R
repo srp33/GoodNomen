@@ -30,13 +30,13 @@ observeEvent(input$automatch, ignoreInit = T, {
   
   values$matches <- dplyr::select(sdm, -Score) %>%
     dplyr::rename(`Current Term` = TestTerm) %>%
-    dplyr::rename(`Standardized Term` = OntologyTerm) %>%
-    dplyr::filter(`Current Term` != `Standardized Term`) %>%
+    dplyr::rename(`Ontology Term` = OntologyTerm) %>%
+    dplyr::filter(`Current Term` != `Ontology Term`) %>%
     dplyr::mutate(Accept = TRUE)
     
  
   # Sort the table alphabetically
-  values$matches <- values$matches[order(values$matches$`Standardized Term`),]
+  values$matches <- values$matches[order(values$matches$`Ontology Term`),]
   
   # Output the table
   if (nrow(values$matches) > 0) {
@@ -47,11 +47,11 @@ observeEvent(input$automatch, ignoreInit = T, {
         "Accept a match by checking the box in the row.",
         "Press \"Save\" to apply these changes to your data and close this window.",
         "If a match is accepted, all occurrences of the current term will be changed",
-        "to the standardized term."
+        "to the ontology term."
       )
     )
-    content[[2]] <- actionButton('selectAll', label = "Select All")
-    content[[3]] <- actionButton('deselectAll', label = "Deselect All")
+    content[[2]] <- actionButton('selectAll', label = "Select All", style = "color: #fff; background-color: #6baed6; border-color: #6baed6;")
+    content[[3]] <- actionButton('deselectAll', label = "Deselect All", style = "color: #fff; background-color: #6baed6; border-color: #6baed6;")
     content[[4]] <- br()
     content[[5]] <- br()
     content[[6]] <- uiOutput("automatchTable")
@@ -110,7 +110,7 @@ renderAutoMatchTable <- function(){
       tagList(
         fluidRow(
           column(width = AUTOMATCH_COLUMN_WIDTH, h4("Current Term", style = "padding:9px")),
-          column(width = AUTOMATCH_COLUMN_WIDTH, h4("Standardized Term", style = "padding:9px")),
+          column(width = AUTOMATCH_COLUMN_WIDTH, h4("Ontology Term", style = "padding:9px")),
           column(width = AUTOMATCH_COLUMN_WIDTH, h4("Accept?"), style = "padding:9px")
         )
       ),
@@ -138,12 +138,12 @@ observeEvent(input$automatchSave, ignoreInit = T, {
     # Change dataset table values to reflect changes made by editor
     values$lastSelectedEditColumn <- input$editThisColumn
     accepted <- values$matches[,3]
-    acceptedList <- values$matches$'Standardized Term'[accepted]
+    acceptedList <- values$matches$'Ontology Term'[accepted]
     
     # The if statement checks to make sure that at least 1 term has been selected to save. Else, don't change any terms.
     if (length(acceptedList) > 0 ) {
       names(acceptedList) <- paste0("^", values$matches$`Current Term`[accepted], "$")
-      columnNameOfChangedTerms <- input$editThisColumn #The column from the actual datasheet that is to be changed
+      columnNameOfChangedTerms <- input$editThisColumn # The column from the actual datasheet that is to be changed
       datasetInput <- values$dataset
       
       # This tells the R Script which terms we want to change and what we want to change them to
@@ -160,17 +160,17 @@ observeEvent(input$automatchSave, ignoreInit = T, {
       values$dataset <- datasetInput
       masterText <<- paste0(masterText, "\n", automatchingText)
       
-      rawStrings <- values$matches$`Current Term`[accepted]
-      preferredTerms <- values$matches$`Standardized Term`[accepted]
+      originalTerms <- values$matches$`Current Term`[accepted]
+      ontologyTerms <- values$matches$`Ontology Term`[accepted]
       rows <- NULL
-      # Some preferred terms map to multiple URIs, so a for loop is necessary instead of more condensed statements
-      for (i in 1:length(rawStrings)) {
-        rawString <- rawStrings[i]
-        type <- columnNameOfChangedTerms
-        preferredTerm <- preferredTerms[i]
-        uri <- values$ids[which(values$preferred == preferredTerm)][1]
-        row <- c(rawString, type, preferredTerm, uri)
-        names(row) <- c("Raw_String", "Type", "Preferred_Term", "URI")
+      # Some ontology terms map to multiple URIs, so a for loop is necessary instead of more condensed statements
+      for (i in 1:length(originalTerms)) {
+        originalTerm <- originalTerms[i]
+        source <- "Data value"
+        ontologyTerm <- ontologyTerms[i]
+        uri <- values$ids[which(values$preferred == ontologyTerm)][1]
+        row <- c(originalTerm, source, columnNameOfChangedTerms, ontologyTerm, uri)
+        names(row) <- c("Original_Term", "Source", "Column_Name", "Ontology_Term", "Ontology_Term_URI")
         rows <- rbind(rows, row)
       }
       masterChanges <<- rbind(masterChanges, rows)

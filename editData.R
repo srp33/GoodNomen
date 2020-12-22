@@ -5,7 +5,7 @@ output$selectedOntology <- renderUI({
   ontologyLstAcr <- strsplit(values$ontName, " ")
   values$ontologyAcronym <<- ontologyLstAcr[[1]][1]
   urlToOpen <- paste0("https://bioportal.bioontology.org/ontologies/",values$ontologyAcronym)
-  HTML(paste("<b>Selected Ontology: </b>",  (a(href = urlToOpen, values$ontName)), collapse = "<BR>"))
+  HTML(paste("<b>Selected Ontology: </b>",  (a(href = urlToOpen, values$ontName, style = "color:#252525")), collapse = "<BR>"))
 })
 
 # Build widget for changing ontology
