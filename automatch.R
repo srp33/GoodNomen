@@ -1,9 +1,9 @@
-# Automatch ---------------------------------------------------------------
+# Auto-match ---------------------------------------------------------------
 
 # Before letting the user automatch, ensure that an onotology has been selected and a column to edit
 output$automatch <- renderUI({
   if (input$ontologySelector != "" && !is.null(input$ontologySelector) && input$editThisColumn != "" && !is.null(input$editThisColumn)) {
-    actionButton('automatch', label = div("Automatch", helpButton("Matches will be found based on synonyms in the selected ontology")), width = "100%")
+    actionButton('automatch', label = div("Auto-match", helpButton("Matches will be found based on synonyms in the selected ontology")), width = "100%")
   }
 })
 
@@ -62,7 +62,9 @@ observeEvent(input$automatch, ignoreInit = T, {
       "#automatchModal .modal-footer{ display:none}"
     ))
   } else {
-    content <- p("The terms in this column are already standardized or there were no matches found.")
+    content <- tagList()
+    content[[1]] <- p("The terms in this column are already standardized or there were no matches found.")
+    content[[2]] <- actionButton('automatchClose', label = "Cancel", class = "secondary_button")
   }
   
   showModal(
@@ -90,7 +92,7 @@ observeEvent(input$deselectAll,  {
 })
 
 
-# Generate one row at a time for the automatch table
+# Generate one row at a time for the auto-match table
 autoMatchModule <- function(current, standard, booleanValue){
   currentString <- str_replace_all(current, regex("\\W+"), " ")
   ns <- NS(currentString)
@@ -132,16 +134,17 @@ observeEvent(input$automatchSave, ignoreInit = T, {
     checkBox <- input[[paste0(name, "-checkBox")]]
     checks <- c(checks, checkBox)
   }
+
   values$matches[,3] <- checks
-  
-  if (length(which(values$matches[,3])) > 0) {
+
+  if (sum(checks) > 0) {
     # Change dataset table values to reflect changes made by editor
     values$lastSelectedEditColumn <- input$editThisColumn
     accepted <- values$matches[,3]
     acceptedList <- values$matches$'Ontology Term'[accepted]
     
     # The if statement checks to make sure that at least 1 term has been selected to save. Else, don't change any terms.
-    if (length(acceptedList) > 0 ) {
+    if (length(acceptedList) > 0) {
       names(acceptedList) <- paste0("^", values$matches$`Current Term`[accepted], "$")
       columnNameOfChangedTerms <- input$editThisColumn # The column from the actual datasheet that is to be changed
       datasetInput <- values$dataset
@@ -150,8 +153,8 @@ observeEvent(input$automatchSave, ignoreInit = T, {
       # It also changes the values in the dataset to their corrected value (if it was checked)
       names <- paste0("^", values$matches$`Current Term`[accepted], "$")
       
-      # ADD TEXT TO SCRIPT for automatching
-      masterText <<- paste0(masterText, "\n\n# Changing the dataset based on automatch\n", "columnNameOfChangedTerms <- \"", columnNameOfChangedTerms, 
+      # ADD TEXT TO SCRIPT for auto-matching
+      masterText <<- paste0(masterText, "\n\n# Changing the dataset based on auto-match\n", "columnNameOfChangedTerms <- \"", columnNameOfChangedTerms, 
                             "\"\n", "acceptedList <- c(", paste0("'", unname(acceptedList), "'", collapse = ", "), ")",
                             "\n","namesAcceptedList <- c(", paste0("'", names, "'", collapse = ", "), ")",
                             "\nnames(acceptedList) <- namesAcceptedList")

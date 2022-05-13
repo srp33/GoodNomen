@@ -1,4 +1,7 @@
 # User Interface (UI) ----------------------------------------------------------------------
+# Set file upload size to 10 MB
+options(shiny.maxRequestSize = 10 * 1024^2)
+
 # Define function for tooltips 
 helpButton <- function(message = "content", placement = "right") {
   return(tipify(icon("question-circle"), title = message, placement = placement, trigger = "hover"))
@@ -54,7 +57,7 @@ ui <- fluidPage(
                                      paste(
                                        "Data may be standardized automatically or manually.",
                                        "First select the name of the column containing the data you wish to edit.",
-                                       "If you would like to automate the matching process, press \"Automatch.\"",
+                                       "If you would like to automate the matching process, press \"Auto-match.\"",
                                        "The data will be processed and then a pop-up window will appear and ask you to review the matches.",
                                        "If you would like to manually update the data, press \"Manual.\"",
                                        "A different pop-up window will appear with instructions on how to edit the data.",

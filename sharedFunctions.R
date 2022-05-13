@@ -68,7 +68,7 @@ loadOntology <- function() {
   ontFileName <- paste0(TEMP_DIR_PATH, values$ontologyAcronym, "_Ontology.feather")
   allFileName <- paste0(TEMP_DIR_PATH, values$ontologyAcronym, "_All_Terms.feather")
   
-  shouldDownload <- TRUE
+  shouldDownload <- FALSE #TRUE
   if (file.exists(ontFileName)) {
     lastRunDate <- file.mtime(ontFileName)
     dateDif <- as.Date(strptime(Sys.Date(), "%Y-%m-%d")) - as.Date(strptime(lastRunDate,"%Y-%m-%d"))

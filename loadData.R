@@ -64,6 +64,8 @@ setColNames <- function(startRow, colNameRow) {
 
 # Initialize variables so functionality is enabled and user can click between tabs without pushing "next"
 observeEvent(input$userFile, ignoreInit = T, {
+  req(input$userFile)
+  session$sendCustomMessage("upload_msg", "YOUR TEXT")
   withProgress(message = "Initializing Elements", {
     output$inputError <- tryCatch({
       values$datasetInput <- readInputFile(input$userFile)
@@ -173,7 +175,7 @@ output$ontologySelector <- renderUI({
         show_modal_spinner(spin = "spring", color = "#112446",
                            text = p("To help you standardize your data, we are accessing the entire list of ontologies from ",
                                     (a(href = 'https://bioportal.bioontology.org/', 'BioPortal')), " recommended for your dataset. 
-                             Depending on your internet connection and the last time you used Good Nomen, this could take longer than a minute.
+                             Depending on your internet connection and the last time you used Good Nomen, this could take a while.
                              Thank you for your patience."))
         # Check to make sure OntologyList exists
         if (!file.exists(ONTOLOGY_LIST_FILE_PATH)) {
@@ -273,7 +275,7 @@ output$ontologySelector <- renderUI({
       }, timeout = TIMEOUT_TIME)
     })
     
-    remove_modal_spinner()
+    
     # If no recommended ontologies were found, tell the user
     if (is.null(recommendedOntologies)) {
       showModal(modalDialog(title = "No recommended ontologies found",
@@ -282,6 +284,7 @@ output$ontologySelector <- renderUI({
                             footer = modalButton("Close"),
                             easyClose = TRUE))
     }
+    remove_modal_spinner()
     selectizeInput('ontologySelector',
                    label = div(
                      "Select Ontology:",
@@ -290,7 +293,7 @@ output$ontologySelector <- renderUI({
                                   'All Ontologies' = listOfOntNames),
                    options = list(placeholder = "Select ontology or start typing...",
                                   closeAfterSelect = TRUE))
-  } 
+  }
 })
 
 # Before moving to the next page, check that an ontology has been selected
@@ -315,7 +318,7 @@ observeEvent(input$buttonLoadThenNext, {
   show_modal_spinner(spin = "spring", color = "#112446",
                      text = p("To help you standardize your data, we are pulling standardized terms from ", 
                               (a(href = 'https://bioportal.bioontology.org/annotator', 'BioPortal.')),
-                              "Depending on your internet connection, this could take longer than a minute.", 
+                              "Depending on your internet connection, this could take a while", 
                               "Thank you for your patience."))
   
   if (loadOntology()) {
