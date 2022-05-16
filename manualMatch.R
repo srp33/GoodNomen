@@ -1,6 +1,6 @@
 # Manual Standardization ----------------------------------------
 
-# Before letting the user manual match, ensure that an onotology has been selected and a column to edit
+# Before letting the user manual match, ensure that an ontology has been selected and a column to edit
 output$manual <- renderUI({
   if (input$ontologySelector != "" && !is.null(input$ontologySelector) && input$editThisColumn != "" && !is.null(input$editThisColumn)) {
     actionButton('manual', label = div("Manual", helpButton("Update selected terms to a manually chosen ontology term.")), width = "100%")
@@ -17,6 +17,10 @@ output$nextManualModal <- renderUI({
 # Update data based on selections
 standardizeManually <- function() {
   newData <- if (is.null(input$newData) || input$newData == "" || input$saveConfirmBtn) NA else input$newData
+  newDataList <- newData
+  if (length(newDataList) > 1) {
+    newData <- paste0(newData, collapse = "|")
+  }
   editThisColumn <- gsub("\"", "\\\\\"", input$editThisColumn)
   numItems <- length(input$editData)
   
@@ -37,18 +41,20 @@ standardizeManually <- function() {
       masterText <<- paste0(masterText, manualText)
       
       # Keep track of changes
-      originalTerm <- item
-      source <- "Data value"
-      ontologyTerm <- newData
-      uri <- values$ids[which(values$preferred == ontologyTerm)]
-      if (length(uri) == 0) {
-        uri <- NA
-      } else {
-        uri <- uri[1]
+      for (newDataTerm in newDataList) {
+        originalTerm <- item
+        source <- "Data value"
+        ontologyTerm <- newDataTerm
+        uri <- values$ids[which(values$preferred == newDataTerm)]
+        if (length(uri) == 0) {
+          uri <- NA
+        } else {
+          uri <- uri[1]
+        }
+        row <- c(originalTerm, source, editThisColumn, ontologyTerm, uri)
+        names(row) <- c("Original_Term", "Source", "Column_Name", "Ontology_Term", "Ontology_Term_URI")
+        rows <- rbind(rows, row)
       }
-      row <- c(originalTerm, source, editThisColumn, ontologyTerm, uri)
-      names(row) <- c("Original_Term", "Source", "Column_Name", "Ontology_Term", "Ontology_Term_URI")
-      rows <- rbind(rows, row)
     }
   })
   
@@ -57,7 +63,7 @@ standardizeManually <- function() {
                                      "Click \"Close\" to continue to the next step.")
   updateCheckboxInput(session, "makeNA", value = FALSE)
   updateSelectizeInput(session, "editData", selected = NULL)
-  updateSelectizeInput(session, "newData", selected = NULL)
+  updateSelectizeInput(session, "newData", selected = NULL, options = list(multiple = TRUE))
   return()
 }
 
@@ -177,9 +183,8 @@ observeEvent(input$nextManualModal, {
   content[[5]] <- br()
   content[[6]] <- conditionalPanel(
     condition = "!input.makeNA",
-    selectizeInput('newData', label = "Select terminology term or enter a new term:",
-                   choices = "", selected = NULL, options = list(placeholder = 'Select term or start typing...', 
-                                                                 closeAfterSelect = TRUE, create = TRUE))
+    selectizeInput('newData', label = "Select terminology term or enter a new term:", choices = "",
+                   multiple = TRUE, options = list(placeholder = 'Select term or start typing...'))
   )
   content[[7]] <- br()
   content[[8]] <- conditionalPanel(
@@ -218,20 +223,20 @@ observeEvent(input$nextManualModal, {
   )
 })
 
-# Update the selectize input from the server's end (this is for ALL the terms in the Ontology, sometimes as large as 150,000 terms)
+# Update the selectize input from the server's end (this is for ALL the terms in the ontology, sometimes as large as 150,000 terms)
 observeEvent(input$nextManualModal, {
   if (length(values$recTermsList) > 0) {
-    updateSelectizeInput(session, 'newData', choices = list('Recommended Terms' = c(values$recTermsList, ""),
-                                                            'All Terms' = c("", sort(unique(values$preferred)))), server = TRUE)
+    choicesList <- list('Recommended Terms' = c(values$recTermsList, ""), 'All Terms' = c("", sort(unique(values$preferred))))
   } else {
-    updateSelectizeInput(session, 'newData', choices = list(values$preferred), server = TRUE)
+    choicesList <- list(values$preferred)
   }
+  updateSelectizeInput(session, 'newData', server = TRUE, options = list(multiple = TRUE), choices = choicesList)
 })
 
 # Populate manual modal
 output$editDataSelector <- renderUI({
-  selectizeInput('editData', label = "Enter terms that have a common meaning:", choices = unique(str_trim(values$dataset[[input$editThisColumn]][order(values$dataset[[input$editThisColumn]])])), multiple = T,
-                 options = list(placeholder = "Select a term or start typing..."))
+  selectizeInput('editData', label = "Enter terms that have a common meaning:", choices = unique(str_trim(values$dataset[[input$editThisColumn]][order(values$dataset[[input$editThisColumn]])])), 
+                 multiple = TRUE, options = list(placeholder = "Select a term or start typing..."))
 })
 
 # Close modal on "save" and update data
