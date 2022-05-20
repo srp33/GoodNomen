@@ -16,7 +16,7 @@ This repository provides scripts for executing Good Nomen within a Docker contai
 
 Second, you will need to clone this repository. Then obtain an API key from [BioPortal](https://www.bioontology.org/wiki/BioPortal_Help#Getting_an_API_key). Store this in the root directory of your cloned repository in a file called `BioPortalApiKey.txt`.
 
-Execute the `build_docker` script at the command line (this may need to be modified slightly on Windows). After the image has been built, use the `run_docker` script to start a container with Good Nomen running inside it. You should then be able to access the app at [http://localhost:80/GoodNomen](http://localhost:80/GoodNomen). You can change the port it uses by modifying `run_docker`.
+Execute the `build_docker` script at the command line (this may need to be modified slightly on Windows). After the image has been built, use the `run_docker` script to start a container with Good Nomen running inside it. You should then be able to access the app at [http://localhost:80/GoodNomen](http://localhost:80/GoodNomen). You can change the port it uses by modifying `run_docker`. If you would like to modify the file-size limit, you can modify this near the top of the `UI.R` script and then rebuild the app.
 
 # Contact Us
 
