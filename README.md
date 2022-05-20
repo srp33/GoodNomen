@@ -22,4 +22,4 @@ Execute the `build_docker` script at the command line (this may need to be modif
 
 Please leave questions, comments, or bug reports for us [here](https://github.com/srp33/GoodNomen/issues).
 
-This application was developed by the [Piccolo Lab](https://piccolo.byu.edu). Special thanks to [Alyssa Parker](https://medschool.vanderbilt.edu/igp/person/alyssa-parker/) for conceiving this app and working so hard on it.
+This application was developed by the [Piccolo Lab](https://piccolo.byu.edu). Special thanks to [Alyssa Parker](https://medschool.vanderbilt.edu/igp/person/alyssa-parker) for conceiving this app and working so hard on it. [Elizabeth Anderson](https://www.linkedin.com/in/elizabeth-cook13) also made many contributions.
