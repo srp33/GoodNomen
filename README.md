@@ -6,7 +6,7 @@
 
 # Demo Version
 
-You can try Good Nomen [here](https://bioapps.byu.edu/GoodNomen).
+You can try Good Nomen [here](https://bioapps.byu.edu/GoodNomen). The demo server has a file-upload limit of 10 megabytes.
 
 # Installing and running Good Nomen
 
