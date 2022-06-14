@@ -146,14 +146,13 @@ observeEvent(input$automatchSave, ignoreInit = T, {
     
     # The if statement checks to make sure that at least 1 term has been selected to save. Else, don't change any terms.
     if (length(acceptedList) > 0) {
-      #names(acceptedList) <- paste0("^", values$matches$`Current Term`[accepted], "$") # TESTING REMOVAL
       names(acceptedList) <- values$matches$`Current Term`[accepted]
       columnNameOfChangedTerms <- input$editThisColumn # The column from the actual datasheet that is to be changed
       datasetInput <- values$dataset
       
       # This tells the R Script which terms we want to change and what we want to change them to
       # It also changes the values in the dataset to their corrected value (if it was checked)
-      names <- names(acceptedList) #paste0("^", values$matches$`Current Term`[accepted], "$")
+      names <- names(acceptedList)
       
       # ADD TEXT TO SCRIPT for auto-matching
       masterText <<- paste0(masterText, "\n\n# Changing the dataset based on auto-match\n", "columnNameOfChangedTerms <- \"", columnNameOfChangedTerms, 
