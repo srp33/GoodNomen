@@ -48,6 +48,8 @@ identifyMatches <- function(originalTerms) {
     colnames(sdm)[1] <- "OntologyTerm"
     incProgress(5/m, detail = "Tidying matches")
     
+    View(sdm)
+    
     # Check if there are any synonyms
     # If not don't worry about splitting the synonyms
     # Just tidy data and give top 10 matches

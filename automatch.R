@@ -94,7 +94,7 @@ observeEvent(input$deselectAll,  {
 
 # Generate one row at a time for the auto-match table
 autoMatchModule <- function(current, standard, booleanValue){
-  currentString <- str_replace_all(current, regex("\\W+"), " ")
+  currentString <- str_replace_all(current, regex("\\W+"), "") 
   ns <- NS(currentString)
   tagList(
     fluidRow(
@@ -129,9 +129,10 @@ observeEvent(input$automatchSave, ignoreInit = T, {
   # Reactive variables have some limitations, one being that you cannot perform functions on a vector of reactive variables
   # For loops can be used here instead to go through the rows of the matches table and see if the box was checked
   checks <- c()
-  nameSpaces <- str_replace_all(values$matches[,1], regex("\\W+"), " ")
-  for (name in nameSpaces) {
-    checkBox <- input[[paste0(name, "-checkBox")]]
+  nameSpaces <- str_replace_all(values$matches[,1], regex("\\W+"), "")
+  
+  for (name in nameSpaces) { 
+    checkBox <- input[[paste0(name, "-checkBox")]] # with the large test file the input for the checkboxes is always empty...
     checks <- c(checks, checkBox)
   }
 
@@ -145,20 +146,21 @@ observeEvent(input$automatchSave, ignoreInit = T, {
     
     # The if statement checks to make sure that at least 1 term has been selected to save. Else, don't change any terms.
     if (length(acceptedList) > 0) {
-      names(acceptedList) <- paste0("^", values$matches$`Current Term`[accepted], "$")
+      #names(acceptedList) <- paste0("^", values$matches$`Current Term`[accepted], "$") # TESTING REMOVAL
+      names(acceptedList) <- values$matches$`Current Term`[accepted]
       columnNameOfChangedTerms <- input$editThisColumn # The column from the actual datasheet that is to be changed
       datasetInput <- values$dataset
       
       # This tells the R Script which terms we want to change and what we want to change them to
       # It also changes the values in the dataset to their corrected value (if it was checked)
-      names <- paste0("^", values$matches$`Current Term`[accepted], "$")
+      names <- names(acceptedList) #paste0("^", values$matches$`Current Term`[accepted], "$")
       
       # ADD TEXT TO SCRIPT for auto-matching
       masterText <<- paste0(masterText, "\n\n# Changing the dataset based on auto-match\n", "columnNameOfChangedTerms <- \"", columnNameOfChangedTerms, 
                             "\"\n", "acceptedList <- c(", paste0("'", unname(acceptedList), "'", collapse = ", "), ")",
                             "\n","namesAcceptedList <- c(", paste0("'", names, "'", collapse = ", "), ")",
                             "\nnames(acceptedList) <- namesAcceptedList")
-      automatchingText <- "datasetInput[[columnNameOfChangedTerms]] <- str_replace_all(datasetInput[[columnNameOfChangedTerms]], acceptedList)"
+      automatchingText <- "datasetInput[[columnNameOfChangedTerms]] <- str_replace_all(datasetInput[[columnNameOfChangedTerms]], fixed(acceptedList))"
       eval(parse(text = automatchingText))
       values$dataset <- datasetInput
       masterText <<- paste0(masterText, "\n", automatchingText)
