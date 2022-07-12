@@ -6,7 +6,7 @@
 
 # Demo Version
 
-You can try Good Nomen [here](https://bioapps.byu.edu/GoodNomen). The demo server has a file-upload limit of 10 megabytes.
+You can try Good Nomen [here](https://bioapps.byu.edu/GoodNomen). The demo server has a file-upload limit of 1 megabyte.
 
 If you would like, you can use [this example data file](https://raw.githubusercontent.com/srp33/GoodNomen/master/example_data/nationwidechildrens.org_clinical_drug_brca.tsv). After uploading it to Good Nomen, indicate that the file has three header lines. When standardizing this file, we have focused primarily on the `pharmaceutical_therapy_drug_name` column.
 
