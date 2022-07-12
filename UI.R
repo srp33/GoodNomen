@@ -1,6 +1,6 @@
 # User Interface (UI) ----------------------------------------------------------------------
-# Set file upload size to 10 MB
-options(shiny.maxRequestSize = 10 * 1024^2)
+# Set file upload size to 1 MB
+options(shiny.maxRequestSize = 1024^2)
 
 # Define function for tooltips 
 helpButton <- function(message = "content", placement = "right") {
