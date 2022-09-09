@@ -8,7 +8,7 @@ helpButton <- function(message = "content", placement = "right") {
 }
 
 # Define accepted file types and the read_ functions used to load them
-extensionsMap <- c(".txt" = "tsv", ".tsv" = "tsv", ".csv" = "csv", ".xls" = "excel", ".xlsx" = "excel")
+extensionsMap <- c(".txt" = "txt", ".tsv" = "tsv", ".csv" = "csv", ".xls" = "excel", ".xlsx" = "excel")
 
 # Define function for collapsing a list with proper grammar
 collapseText <- function(inputList) {
