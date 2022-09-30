@@ -186,3 +186,8 @@ observeEvent(input$resetAndSave, {
     removeModal()
   }
 })
+
+# For debugging
+printString <- function(string) {
+  cat(file=stderr(), string)
+}

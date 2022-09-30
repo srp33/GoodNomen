@@ -8,7 +8,7 @@ helpButton <- function(message = "content", placement = "right") {
 }
 
 # Define accepted file types and the read_ functions used to load them
-extensionsMap <- c(".txt" = "txt", ".tsv" = "tsv", ".csv" = "csv", ".xls" = "excel", ".xlsx" = "excel")
+extensionsMap <- c(".txt" = "tsv", ".tsv" = "tsv", ".csv" = "csv", ".xls" = "excel", ".xlsx" = "excel")
 
 # Define function for collapsing a list with proper grammar
 collapseText <- function(inputList) {
@@ -40,19 +40,17 @@ ui <- fluidPage(
                                      textOutput("inputError"), tags$head(tags$style("#inputError {color: red;}")),
                                      uiOutput("headerSelector"),
                                      uiOutput("colnamesSelector"), br(),
-                                     uiOutput("ontologySelector"),
-                                     textOutput("error"), tags$head(tags$style("#error {color: red;}")), br(),
                                      uiOutput("firstPageNext"), br(), br()), 
                         # Data Preview 
                         mainPanel(width = RIGHT_COLUMN_WIDTH,
                           conditionalPanel(condition = 'input.header', wellPanel(uiOutput("uploadPreview")))
                         ))),
-             
-             # Edit Data (Auto/Manual) ---------------------------------------------------------------
-             tabPanel('Edit Data', value = 'editTable', 
+
+             # Standardize Columns ---------------------------------------------------------------
+             tabPanel('Standardize Columns', value = 'standardizeColumns',
                       sidebarPanel(width = LEFT_COLUMN_WIDTH,
                                    tags$img(src = 'Logo.png', align = "right", height = "100px"),
-                                   h4("Edit Data"),
+                                   h4("Standardize Columns"),
                                    p(
                                      paste(
                                        "Data may be standardized automatically or manually.",
@@ -64,23 +62,50 @@ ui <- fluidPage(
                                        "When finished, press \"Next.\""
                                      )
                                    ), br(),
-                                   htmlOutput("selectedOntology"),
-                                   actionButton('changeOntology', label = div("Change Ontology", helpButton("Click to change which ontology you want to use")),
-                                                style = "color: #fff; background-color: #a1d99b; border-color: #a1d99b;", width = "100%"), br(), br(),
                                    uiOutput("editThisColumnSelector"),
-                                   fluidRow(column(width = 6, uiOutput("automatch")), 
-                                             column(width = 6, uiOutput("manual"))),
-                                   uiOutput("resetAndSave"), br(),
-                                   uiOutput("cancelChangeOntology"),
-                                   div(
-                                     actionButton('editBack', "Back", css.class = "back_button", style = "color: #fff; background-color: #6baed6; border-color: #6baed6;"),
-                                     actionButton('editNext', "Next", css.class = "next_button", style = "float: right; color: #fff; background-color: #2ca25f; border-color: #2ca25f;"))
+                                   uiOutput("ontologySelector"),
+                                  #  textOutput("error"), tags$head(tags$style("#error {color: red;}")), br(),
+                                  #  htmlOutput("selectedOntology"),
                       ),
                       mainPanel(width = RIGHT_COLUMN_WIDTH,
                         tags$em(textOutput("editDataPreviewText")),
                         wellPanel(dataTableOutput('singleColumn'), style = "display: table")
                       )
-             ),
+             ),            
+             
+            #  # Edit Data (Auto/Manual) ---------------------------------------------------------------
+            #  tabPanel('Edit Data', value = 'editTable', 
+            #           sidebarPanel(width = LEFT_COLUMN_WIDTH,
+            #                        tags$img(src = 'Logo.png', align = "right", height = "100px"),
+            #                        h4("Edit Data"),
+            #                        p(
+            #                          paste(
+            #                            "Data may be standardized automatically or manually.",
+            #                            "First select the name of the column containing the data you wish to edit.",
+            #                            "If you would like to automate the matching process, press \"Auto-match.\"",
+            #                            "The data will be processed and then a pop-up window will appear and ask you to review the matches.",
+            #                            "If you would like to manually update the data, press \"Manual.\"",
+            #                            "A different pop-up window will appear with instructions on how to edit the data.",
+            #                            "When finished, press \"Next.\""
+            #                          )
+            #                        ), br(),
+            #                        htmlOutput("selectedOntology"),
+            #                        actionButton('changeOntology', label = div("Change Ontology", helpButton("Click to change which ontology you want to use")),
+            #                                     style = "color: #fff; background-color: #a1d99b; border-color: #a1d99b;", width = "100%"), br(), br(),
+            #                        uiOutput("editThisColumnSelector"),
+            #                        fluidRow(column(width = 6, uiOutput("automatch")), 
+            #                                  column(width = 6, uiOutput("manual"))),
+            #                        uiOutput("resetAndSave"), br(),
+            #                        uiOutput("cancelChangeOntology"),
+            #                        div(
+            #                          actionButton('editBack', "Back", css.class = "back_button", style = "color: #fff; background-color: #6baed6; border-color: #6baed6;"),
+            #                          actionButton('editNext', "Next", css.class = "next_button", style = "float: right; color: #fff; background-color: #2ca25f; border-color: #2ca25f;"))
+            #           ),
+            #           mainPanel(width = RIGHT_COLUMN_WIDTH,
+            #             tags$em(textOutput("editDataPreviewText")),
+            #             wellPanel(dataTableOutput('singleColumn'), style = "display: table")
+            #           )
+            #  ),
              
              # Update Column Names -----------------------------------------------------
              tabPanel('Update Column Names', value = 'updateColumnNames',

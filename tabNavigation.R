@@ -1,9 +1,9 @@
 # Change Tab --------------------------------------------------------------
-observeEvent(input$button, ignoreInit = T, {
-  updateTabsetPanel(session, 'tabs', selected = 'editTable')
+observeEvent(input$buttonLoadThenNext, ignoreInit = T, {
+  updateTabsetPanel(session, 'tabs', selected = 'standardizeColumns')
 })
 observeEvent(input$terminologyButton, ignoreInit = T, {
-  updateTabsetPanel(session, 'tabs', selected = 'editTable')
+  updateTabsetPanel(session, 'tabs', selected = 'standardizeColumns')
 })
 observeEvent(input$editBack, {
   updateTabsetPanel(session, 'tabs', selected = 'loadData')
