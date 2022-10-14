@@ -45,7 +45,7 @@ ui <- fluidPage(
                         mainPanel(width = RIGHT_COLUMN_WIDTH,
                           conditionalPanel(condition = 'input.header', wellPanel(uiOutput("uploadPreview")))
                         ))),
-
+                        
              # Standardize Columns ---------------------------------------------------------------
              tabPanel('Standardize Columns', value = 'standardizeColumns',
                       sidebarPanel(width = LEFT_COLUMN_WIDTH,
