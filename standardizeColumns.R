@@ -2,6 +2,7 @@
 
 # Build widget for selecting column to standardize
 output$editThisColumnSelector <- renderUI({
+  browser()
   selectizeInput(
     'editThisColumn', 
     label = "Select Column to Standardize:", 
@@ -10,6 +11,7 @@ output$editThisColumnSelector <- renderUI({
 
 # Get recommended ontologies from BioPortal
 getRecommendedOntologies <- function(dataset) {
+  browser()
   testValues <- c()
   sampleDataset <- dataset[, !sapply(dataset, function(x) length(x) == length(unique(x)))]
   sampleDataset <- sampleDataset[, !sapply(sampleDataset, is.numeric) & !sapply(sampleDataset, is.logical) & !sapply(sampleDataset, is.Date) & !sapply(sampleDataset, is.POSIXct)] 
