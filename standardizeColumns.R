@@ -160,23 +160,123 @@ output$ontologySelector <- renderUI({
                    choices = list('Recommended Ontologies' = c("", recommendedOntologies),
                                   'All Ontologies' = listOfOntNames),
                    options = list(placeholder = "Select ontology or start typing...",
-                                  closeAfterSelect = TRUE))
+                                  closeAfterSelect = TRUE),
+                                  )
   }
 })
 
-# Display text showing which ontology is selected
-# output$selectedOntology <- renderUI({
-#   ontologyLstAcr <- strsplit(values$ontName, " ")
-#   values$ontologyAcronym <<- ontologyLstAcr[[1]][1]
-#   urlToOpen <- paste0("https://bioportal.bioontology.org/ontologies/",values$ontologyAcronym)
-#   HTML(paste("<b>Selected Ontology: </b>",  (a(href = urlToOpen, values$ontName, style = "color:#252525")), collapse = "<BR>"))
-# })
+# Handle downloading the ontology, check to see if it's locked
+observeEvent(input$ontologySelector, {
+
+  values$ontName <<- input$ontologySelector
+
+  # ADD TEXT TO SCRIPT for modifying headers 
+  masterText <<- paste0(masterText, "\n\n# Set column names and format datasheet\n", 
+                        readInputFileText, "\n", values$headerText)
+  
+  # Parse the acronym from the ontology name and show it
+  values$ontologyAcronym <<- strsplit(values$ontName, " ")[[1]][1]
+  
+  values$manualSaveMessage <- NULL
+  show_modal_spinner(spin = "spring", color = "#112446",
+                     text = p("To help you standardize your data, we are pulling standardized terms from ", 
+                              (a(href = 'https://bioportal.bioontology.org/annotator', 'BioPortal.')),
+                              "Depending on your internet connection, this could take a while", 
+                              "Thank you for your patience."))
+  
+  if (loadOntology()) {
+    remove_modal_spinner()
+    updateTabsetPanel(session, 'tabs', selected = 'editTable')
+  }
+})
+
+# Include source code for automatching and manual matching
+source('automatch.R', local = TRUE)
+source('manualMatch.R', local = TRUE)
 
 # Render message if the user has not uploaded data
-# output$editDataPreviewText <- renderText({
-#   if (is.null(values$dataset)) {
-#     "After you have uploaded a file, a preview of your data will appear here."
-#   } else {
-#     NULL
-#   }
-# })
+output$standardizeColumnsPreviewText <- renderText({
+  if (is.null(values$dataset)) {
+    "After you have uploaded a file, a preview of your data will appear here."
+  } else {
+    NULL
+  }
+})
+
+# Prepare a single column to display
+output$singleColumn <- renderDT({
+  datatable(values$dataset[, input$editThisColumn], options = list(pageLength = 10), rownames = F)
+})
+
+
+
+# Display "rename" button when a column and new name have been selected
+output$columnRenameButton <- renderUI({
+  if (!is.null(input$newColumn) && input$newColumn != "") {
+    actionButton('columnRename', "Rename", width = "100%")
+  }
+})
+
+# Listen for when the user selects a column to rename then suggest a standardized name
+observe({
+  if (!is.null(input$editThisColumn) && nchar(input$editThisColumn) > 0 && values$ontName != NULL) {  ## TODO make sure this doesn't try to access ontology before it's selected
+    disable("newColumn")
+    
+    show_modal_spinner(spin = "spring", color = "#112446",
+                       text = paste0("To help you standardize your data, we are finding recommended column names from the ontology you 
+                                       selected. Thank you for your patience."))
+    
+    sdm <- identifyMatches(input$editThisColumn)
+    newColNames <- sdm$OntologyTerm
+    names(newColNames) <- NULL
+    
+    removeModal()
+    
+    updateSelectizeInput(session, inputId = 'newColumn', choices = list('Recommended Terms' = c(newColNames, ""),
+                                                                        'All Terms' = c("", values$preferred)), server = TRUE,
+                         options = list(placeholder = 'Select a term or start typing...', 
+                                        create = TRUE, maxItems = 5, maxOptions = 100,
+                                        closeAfterSelect = TRUE))
+    enable("newColumn")
+  }
+})
+
+# Edit the column names
+observeEvent(input$columnRename, ignoreInit = T, {
+  # Display warning if user does not select column to rename and new column name
+  if (input$editThisColumn == "" | input$newColumn == "") {
+    toggleModal(session, 'columnModal', toggle = "open")
+  }
+  # Display warning if new name is already the name of a column
+  else if (any(input$newColumn %in% columns())) {
+    toggleModal(session, 'equalModal', toggle = "open")
+  }
+  else {
+    datasetInput <- values$dataset
+    newColumn <- gsub("\"", "\\\\\"", input$newColumn)
+    changeColumnText <- paste0("\n# Edit Column Name\n",
+                               "editThisColumn <- \"", input$editThisColumn, "\"\n",
+                               "newColumn <- \"", newColumn, "\"",
+                               "\ncolnames(datasetInput)[which(colnames(datasetInput) == editThisColumn)] <- newColumn")
+    eval(parse(text = changeColumnText))
+    values$dataset <- datasetInput
+    
+    # ADD TEXT TO SCRIPT for modifying column names
+    masterText <<- paste0(masterText, "\n", changeColumnText)
+    
+    # Keep track of changes
+    originalTerm <- input$editThisColumn
+    source <- "Column name"
+    ontologyTerm <- newColumn
+    uri <- values$ids[which(values$preferred == ontologyTerm)]
+    if (length(uri) == 0) {
+      uri <- NA
+    } else {
+      uri <- uri[1]
+    }
+    row <- c(originalTerm, source, NA, ontologyTerm, uri)
+    names(row) <- c("Original_Term", "Source", "Column_Name", "Ontology_Term", "Ontology_Term_URI")
+    masterChanges <<- rbind(masterChanges, row)
+  }
+  showNotification(paste0("Column \"", input$editThisColumn, "\" has been renamed to \"", input$newColumn, ".\""))
+})

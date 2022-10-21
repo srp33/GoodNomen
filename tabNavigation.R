@@ -5,18 +5,12 @@ observeEvent(input$buttonLoadThenNext, ignoreInit = T, {
 observeEvent(input$terminologyButton, ignoreInit = T, {
   updateTabsetPanel(session, 'tabs', selected = 'standardizeColumns')
 })
-observeEvent(input$editBack, {
+observeEvent(input$standardizeBack, {
   updateTabsetPanel(session, 'tabs', selected = 'loadData')
 })
-observeEvent(input$editNext, ignoreInit = T, {
-  updateTabsetPanel(session, 'tabs', selected = 'updateColumnNames')
-})
-observeEvent(input$columnBack, {
-  updateTabsetPanel(session, 'tabs', selected = 'editTable')
-})
-observeEvent(input$columnSubmit, ignoreInit = T, {
+observeEvent(input$standardizeNext, ignoreInit = T, {
   updateTabsetPanel(session, 'tabs', selected = 'finalReport')
 })
 observeEvent(input$saveBack, {
-  updateTabsetPanel(session, 'tabs', selected = 'updateColumnNames')
+  updateTabsetPanel(session, 'tabs', selected = 'standardizeColumns')
 })
