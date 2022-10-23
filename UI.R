@@ -104,58 +104,6 @@ ui <- fluidPage(
                       )
              ),
              
-            #  # Update Column Names -----------------------------------------------------
-            #  tabPanel('Update Column Names', value = 'updateColumnNames',
-            #           sidebarPanel(width = LEFT_COLUMN_WIDTH,
-            #                        tags$img(src = 'Logo.png', align = "right", height = "100px"),
-            #                        h4("Update Column Names"),
-            #                        p(
-            #                          paste(
-            #                            "If desired, select a column to rename and a new column name. When a column to rename is selected,",
-            #                            "the new column name box will be autofilled with a suggested name if a matching term is found in the",
-            #                            "ontology. This term may be changed. Press \"Rename\" to update. Multiple columns may be renamed.",
-            #                            "When finished, press \"Next.\""
-            #                          )
-            #                        ), 
-            #                        uiOutput("editColumnSelector"),
-            #                        conditionalPanel(
-            #                          condition = 'input.editColumn',
-            #                          selectizeInput(
-            #                            'newColumn',
-            #                            label = "Select New Column Name:",
-            #                            choices = NULL,
-            #                            options = list(placeholder = 'Please select a column above...',
-            #                                           closeAfterSelect = TRUE)
-            #                          ),
-            #                          uiOutput("columnRenameButton")
-            #                        ), 
-            #                        bsModal(# Warning if user does not select column to rename and new column name
-            #                          'columnModal',
-            #                          title = "Error",
-            #                          trigger = 'input.newColumn',
-            #                          HTML(paste('<p color="black">You must select a column to rename and a new column name.", 
-            #                                     "Please close this window and select these items.</p>')),
-            #                          tags$head(tags$style("#columnModal {color: red;}"))
-            #                        ), 
-            #                        bsModal(# Warning if user selects a new column name that is already being used as a column name
-            #                          'equalModal',
-            #                          title = "Error",
-            #                          trigger = 'input.newColumn',
-            #                          HTML(paste('<p color="black">The selected new column name is already being used as a column name.", 
-            #                                     "Please close this window and select a different name.</p>')),
-            #                          tags$head(tags$style("#equalModal {color: red;}"))
-            #                        ), br(), div(
-            #                          actionButton('columnBack', "Back", class = "back_button"),
-            #                          actionButton('columnSubmit', "Next", class = "next_button")
-            #                        )
-            #           ), 
-            #           # Data Preview 
-            #           mainPanel(width = RIGHT_COLUMN_WIDTH,
-            #             tags$em(textOutput("updateColNamesPreviewText")),
-            #             wellPanel(dataTableOutput("updateSingleColumn"), style = "display: table")
-            #           )
-            #  ),
-             
              # Save Data ---------------------------------------------------------------
              tabPanel('Save Data', value = 'finalReport', 
                       sidebarPanel(width = LEFT_COLUMN_WIDTH,

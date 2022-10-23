@@ -2,7 +2,6 @@
 
 # Build widget for selecting column to standardize
 output$editThisColumnSelector <- renderUI({
-  browser()
   selectizeInput(
     'editThisColumn', 
     label = "Select Column to Standardize:", 
@@ -11,7 +10,6 @@ output$editThisColumnSelector <- renderUI({
 
 # Get recommended ontologies from BioPortal
 getRecommendedOntologies <- function(dataset) {
-  browser()
   testValues <- c()
   sampleDataset <- dataset[, !sapply(dataset, function(x) length(x) == length(unique(x)))]
   sampleDataset <- sampleDataset[, !sapply(sampleDataset, is.numeric) & !sapply(sampleDataset, is.logical) & !sapply(sampleDataset, is.Date) & !sapply(sampleDataset, is.POSIXct)] 
@@ -194,22 +192,6 @@ observeEvent(input$ontologySelector, {
 source('automatch.R', local = TRUE)
 source('manualMatch.R', local = TRUE)
 
-# Render message if the user has not uploaded data
-output$standardizeColumnsPreviewText <- renderText({
-  if (is.null(values$dataset)) {
-    "After you have uploaded a file, a preview of your data will appear here."
-  } else {
-    NULL
-  }
-})
-
-# Prepare a single column to display
-output$singleColumn <- renderDT({
-  datatable(values$dataset[, input$editThisColumn], options = list(pageLength = 10), rownames = F)
-})
-
-
-
 # Display "rename" button when a column and new name have been selected
 output$columnRenameButton <- renderUI({
   if (!is.null(input$newColumn) && input$newColumn != "") {
@@ -219,7 +201,7 @@ output$columnRenameButton <- renderUI({
 
 # Listen for when the user selects a column to rename then suggest a standardized name
 observe({
-  if (!is.null(input$editThisColumn) && nchar(input$editThisColumn) > 0 && values$ontName != NULL) {  ## TODO make sure this doesn't try to access ontology before it's selected
+  if (!is.null(input$editThisColumn) && nchar(input$editThisColumn) > 0 && values$ontName != "") {  ## TODO make sure this doesn't try to access ontology before it's selected
     disable("newColumn")
     
     show_modal_spinner(spin = "spring", color = "#112446",
@@ -279,4 +261,19 @@ observeEvent(input$columnRename, ignoreInit = T, {
     masterChanges <<- rbind(masterChanges, row)
   }
   showNotification(paste0("Column \"", input$editThisColumn, "\" has been renamed to \"", input$newColumn, ".\""))
+})
+
+# Render message if the user has not uploaded data
+output$standardizeColumnsPreviewText <- renderText({
+  if (is.null(values$dataset)) {
+    "After you have uploaded a file, a preview of your data will appear here."
+  } else {
+    NULL
+  }
+})
+
+# Prepare a single column to display
+output$singleColumn <- renderDT({
+  browser()
+  datatable(values$dataset[, input$editThisColumn], options = list(pageLength = 10), rownames = F)
 })
