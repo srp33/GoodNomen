@@ -62,11 +62,9 @@ ui <- fluidPage(
                                        "When finished, press \"Next.\""
                                      )
                                    ), br(),
-                                   uiOutput("ontologySelector"),
-                                   textOutput("error"), tags$head(tags$style("#error {color: red;}")), br(),
                                    uiOutput("editThisColumnSelector"),
-                                   fluidRow(column(width = 6, uiOutput("automatch")), 
-                                             column(width = 6, uiOutput("manual"))),
+                                   uiOutput("ontologySelector"),
+                                   h4("Rename Columns"),
                                    conditionalPanel(
                                      condition = 'input.editThisColumn',
                                      selectizeInput(
@@ -78,6 +76,9 @@ ui <- fluidPage(
                                      ),
                                      uiOutput("columnRenameButton")
                                    ),
+                                   h4("Edit Values"),
+                                   fluidRow(column(width = 6, uiOutput("automatch")), 
+                                            column(width = 6, uiOutput("manual"))),
                                    bsModal(# Warning if user does not select column to rename and new column name
                                      'columnModal',
                                      title = "Error",

@@ -165,7 +165,7 @@ output$ontologySelector <- renderUI({
 
 # Handle downloading the ontology, check to see if it's locked
 observeEvent(input$ontologySelector, {
-
+  
   values$ontName <<- input$ontologySelector
 
   # ADD TEXT TO SCRIPT for modifying headers 
@@ -184,7 +184,7 @@ observeEvent(input$ontologySelector, {
   
   if (loadOntology()) {
     remove_modal_spinner()
-    updateTabsetPanel(session, 'tabs', selected = 'editTable')
+    updateTabsetPanel(session, 'tabs', selected = 'standardizeColumns')
   }
 })
 
@@ -201,7 +201,7 @@ output$columnRenameButton <- renderUI({
 
 # Listen for when the user selects a column to rename then suggest a standardized name
 observe({
-  if (!is.null(input$editThisColumn) && nchar(input$editThisColumn) > 0 && values$ontName != "") {  ## TODO make sure this doesn't try to access ontology before it's selected
+  if (!is.null(input$editThisColumn) && nchar(input$editThisColumn) > 0 && values$ontName != "") {
     disable("newColumn")
     
     show_modal_spinner(spin = "spring", color = "#112446",
@@ -256,8 +256,8 @@ observeEvent(input$columnRename, ignoreInit = T, {
     } else {
       uri <- uri[1]
     }
-    row <- c(originalTerm, source, NA, ontologyTerm, uri)
-    names(row) <- c("Original_Term", "Source", "Column_Name", "Ontology_Term", "Ontology_Term_URI")
+    row <- c(originalTerm, source, NA, ontologyTerm, uri, values$ontName)
+    names(row) <- c("Original_Term", "Source", "Column_Name", "Ontology_Term", "Ontology_Term_URI", "Ontology")
     masterChanges <<- rbind(masterChanges, row)
   }
   showNotification(paste0("Column \"", input$editThisColumn, "\" has been renamed to \"", input$newColumn, ".\""))
@@ -274,6 +274,5 @@ output$standardizeColumnsPreviewText <- renderText({
 
 # Prepare a single column to display
 output$singleColumn <- renderDT({
-  browser()
   datatable(values$dataset[, input$editThisColumn], options = list(pageLength = 10), rownames = F)
 })

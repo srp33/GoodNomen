@@ -85,7 +85,9 @@ loadOntology <- function() {
     if (!url.exists(downloadURL)) {
       remove_modal_spinner()
       # SITUATION: ONTOLOGY IS LOCKED FOR DOWNLOAD & it's never been downloaded before
-      lockedOntologyError()
+      if (values$ontName != "") {
+        lockedOntologyError()
+      }
     } else {
       ontologyFile <- NULL
       tryCatch({
@@ -186,8 +188,3 @@ observeEvent(input$resetAndSave, {
     removeModal()
   }
 })
-
-# For debugging
-printString <- function(string) {
-  cat(file=stderr(), string)
-}
