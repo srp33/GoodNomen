@@ -179,7 +179,7 @@ observeEvent(input$ontologySelector, {
   show_modal_spinner(spin = "spring", color = "#112446",
                      text = p("To help you standardize your data, we are pulling standardized terms from ", 
                               (a(href = 'https://bioportal.bioontology.org/annotator', 'BioPortal.')),
-                              "Depending on your internet connection, this could take a while", 
+                              "Depending on your internet connection, this could take a while.", 
                               "Thank you for your patience."))
   
   if (loadOntology()) {
