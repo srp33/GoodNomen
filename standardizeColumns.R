@@ -57,7 +57,7 @@ output$ontologySelector <- renderUI({
         
         # If needed, download full ontology list from BioPortal. Else, read file
         bioportalOntologies <- NULL
-        if (diffNum > DAYS_SINCE_DOWNLOAD) { 
+        if (TRUE) { #FIXME this was the real code: diffNum > DAYS_SINCE_DOWNLOAD changed to TRUE to debug
           tryCatch({
             res <- R.utils::withTimeout({
               bioportalOntologiesResponse <- GET(paste0("http://data.bioontology.org/ontologies?apikey=", API_KEY))
@@ -91,6 +91,7 @@ output$ontologySelector <- renderUI({
         ontologyTibble <- separate(ontologyTibble, value, into =  c("Acronym", "FullName"), sep = "\\s", extra = "merge")
         
         # Access recommended ontologies through Bioportal
+        browser()
         rURL <- getRecommendedOntologies(values$datasetWithColTypes)
         internetTester = curl::has_internet()
         if (!internetTester) {
