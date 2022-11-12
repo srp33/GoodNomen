@@ -150,32 +150,69 @@ output$firstPageNext <- renderUI({
   }
 }) 
 
-# Handle downloading the ontology, check to see if it's locked, and move forward to the next page  ## TODO pull apart and put appropriate parts in standardize columns
-# observeEvent(input$buttonLoadThenNext, {
-  
-#   # ADD TEXT TO SCRIPT for modifying headers 
-#   masterText <<- paste0(masterText, "\n\n# Set column names and format datasheet\n", 
-#                         readInputFileText, "\n", values$headerText)
-  
-#   # Parse the acronym from the ontology name and show it
-#   values$ontologyAcronym <<- strsplit(values$ontName, " ")[[1]][1]
-  
-#   values$manualSaveMessage <- NULL
-#   show_modal_spinner(spin = "spring", color = "#112446",
-#                      text = p("To help you standardize your data, we are pulling standardized terms from ", 
-#                               (a(href = 'https://bioportal.bioontology.org/annotator', 'BioPortal.')),
-#                               "Depending on your internet connection, this could take a while", 
-#                               "Thank you for your patience."))
-  
-#   if (loadOntology()) {
-#     remove_modal_spinner()
-#     updateTabsetPanel(session, 'tabs', selected = 'editTable')
-#   }
-# })
-
-
 # Display a summary of the data when file is uploaded
 output$uploadPreview <- renderText({
   paste0("Thank you for uploading a file! We detected ", nrow(values$datasetInput), " rows and ", ncol(values$datasetInput), " columns. ",
            "Please use the controls on the left to continue.")
 })
+
+# Load ontology versions in the background as soon as the user connects
+callSubmissionsApi <- function() { ### FIXME
+  # Check to make sure OntologyVersionList exists
+  if (!file.exists(ONTOLOGY_VERSION_LIST_FILE_PATH)) {
+    file.create(ONTOLOGY_VERSION_LIST_FILE_PATH)
+    # Set an arbitrarily old date as the default
+    Sys.setFileTime(ONTOLOGY_VERSION_LIST_FILE_PATH, "2020-01-01")
+  }
+  # Get the last date modified from a file and see if it's been 7 days
+  lastRunDate <- file.mtime(ONTOLOGY_VERSION_LIST_FILE_PATH)
+  dateToday <- Sys.Date()
+  dateDif <- as.Date(strptime(dateToday, "%Y-%m-%d")) - as.Date(strptime(lastRunDate,"%Y-%m-%d"))
+  diffNum <- as.numeric(dateDif)
+
+  # If needed, download full ontology version list from BioPortal. Else, read file
+  ontologyVersions <- NULL
+  if (diffNum > DAYS_SINCE_DOWNLOAD) {
+    if (!file.exists(ONTOLOGY_LIST_FILE_PATH)) {
+      
+    } else {
+      # If ontology list is already downloaded
+      listOfOntNames = <- readLines(ONTOLOGY_LIST_FILE_PATH)
+      listOfOntNames = <<- lapply(listOfOntNames, noquote)
+      for (ontology in listOfOntNames) {
+        res <- R.utils::withTimeout({
+        ontologiesVersionResponse <- GET(paste0("http://data.bioontology.org/ontologies/", i, "/submissions?apikey=", API_KEY))
+        bioportalOntologies <- content(bioportalOntologiesResponse, "parsed")
+        }, timeout = TIMEOUT_TIME)
+      }
+      
+      if (is.null(bioportalOntologies)) {
+        showModal(modalDialog(title = "BioPortal Unavailable for Access",
+                              p("BioPortal seems to be down, please check ",
+                                (a(href = 'https://bioportal.bioontology.org/', 'BioPortal')), " to see if it is working. 
+                                You may need to try again later. We apologize for the inconvenience."),
+                              footer = NULL,
+                              easyClose = F))
+        }
+      bioportalOntologiesDataFrame <- data.frame(t(sapply(bioportalOntologies,c)))
+      bioportalOntologiesDataFrame$nameAndAcronymn = paste0(bioportalOntologiesDataFrame$acronym, " - ", bioportalOntologiesDataFrame$name) # Makes a column with both acronym and name
+      listOfOntNames <<- bioportalOntologiesDataFrame[, ncol(bioportalOntologiesDataFrame)] # This accesses the last column of the dataframe
+      write.table(listOfOntNames, file = ONTOLOGY_LIST_FILE_PATH, append = FALSE, quote = FALSE,
+                  row.names = FALSE, col.names = FALSE)
+    }
+  }
+  else {
+    listOfOntVersions <- readLines(ONTOLOGY_VERSION_LIST_FILE_PATH)
+    listOfOntVersions <<- lapply(listOfOntVersions, noquote)
+  }
+}
+
+future_async(callSubmissionsApi()) -> promise %>%
+  then(
+    onFulfilled = function(value) {
+
+    },
+    onRejected = function(value) {
+
+    }
+  )

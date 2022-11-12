@@ -11,6 +11,7 @@ if (dir.exists("/home/shiny"))
 
 API_KEY_FILE_PATH <- "BioPortalApiKey.txt"
 ONTOLOGY_LIST_FILE_PATH <- paste0(TEMP_DIR_PATH, "OntologyList.txt")
+ONTOLOGY_VERSION_LIST_FILE_PATH <- paste0(TEMP_DIR_PATH, "OntologyVersionList.txt")
 
 # Global functions and Definitions --------------------------------------------------------
 

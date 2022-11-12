@@ -64,7 +64,7 @@ ui <- fluidPage(
                                    ), br(),
                                    uiOutput("editThisColumnSelector"),
                                    uiOutput("ontologySelector"),
-                                   h4("Rename Columns"),
+                                   uiOutput("RenameColumnsHeader"),
                                    conditionalPanel(
                                      condition = 'input.editThisColumn',
                                      selectizeInput(
@@ -76,7 +76,7 @@ ui <- fluidPage(
                                      ),
                                      uiOutput("columnRenameButton")
                                    ),
-                                   h4("Edit Values"),
+                                   uiOutput("EditValuesHeader"),
                                    fluidRow(column(width = 6, uiOutput("automatch")), 
                                             column(width = 6, uiOutput("manual"))),
                                    bsModal(# Warning if user does not select column to rename and new column name

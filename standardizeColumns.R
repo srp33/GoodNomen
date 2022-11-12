@@ -188,6 +188,15 @@ observeEvent(input$ontologySelector, {
   }
 })
 
+# Display headers for subsections (only necessary to have them render at the time I want to be more user friendly)
+output$RenameColumnsHeader <- renderUI({
+  h4('Rename Columns')
+})
+
+output$EditValuesHeader <- renderUI({
+  h4('Edit Values')
+})
+
 # Include source code for automatching and manual matching
 source('automatch.R', local = TRUE)
 source('manualMatch.R', local = TRUE)

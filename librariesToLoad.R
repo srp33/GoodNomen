@@ -14,6 +14,9 @@ library(httr)
 library(tidytext)
 library(stringdist)
 library(feather)
+library(promises)
+library(future)
+plan(multisession)
 data(stop_words)
 
 loadLibraries <- "# Load Libraries
