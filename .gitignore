@@ -3,3 +3,4 @@ Archive
 .Rhistory
 .RData
 launch.json
+*.feather

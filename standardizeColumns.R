@@ -57,7 +57,7 @@ output$ontologySelector <- renderUI({
         
         # If needed, download full ontology list from BioPortal. Else, read file
         bioportalOntologies <- NULL
-        if (TRUE) { #FIXME this was the real code: diffNum > DAYS_SINCE_DOWNLOAD changed to TRUE to debug
+        if (diffNum > DAYS_SINCE_DOWNLOAD) {
           tryCatch({
             res <- R.utils::withTimeout({
               bioportalOntologiesResponse <- GET(paste0("http://data.bioontology.org/ontologies?apikey=", API_KEY))
@@ -90,8 +90,17 @@ output$ontologySelector <- renderUI({
         ontologyTibble <- tibble(value = listOfOntNames)
         ontologyTibble <- separate(ontologyTibble, value, into =  c("Acronym", "FullName"), sep = "\\s", extra = "merge")
         
+        # If ontology versions have been downloaded, read them in
+        if (file.exists(ONTOLOGY_VERSION_LIST_FILE_PATH)) {
+          listOfOntVersions <- readLines(ONTOLOGY_VERSION_LIST_FILE_PATH)
+          listOfOntVersions <<- lapply(listOfOntVersions, noquote)
+          versionTibble <- tibble(value = listOfOntVersions)
+          versionTibble <- separate(versionTibble, value, into = c("Acronym", "Version"), sep = "\\s", extra = "merge")
+          # versionTibble$FullName = sapply(versionTibble$FullName, function(x) paste0('- ', x))
+          ontologyTibble = left_join(ontologyTibble, versionTibble)
+        }
+        
         # Access recommended ontologies through Bioportal
-        browser()
         rURL <- getRecommendedOntologies(values$datasetWithColTypes)
         internetTester = curl::has_internet()
         if (!internetTester) {
@@ -127,13 +136,21 @@ output$ontologySelector <- renderUI({
               
               # If there are fewer than three elements in the recommended ontology, set the NUM_RECOMMENDED_ONTOLOGIES to the size of the list created
               if (length(recTibble) < NUM_REC_ONTO) {NUM_REC_ONTO <<- length(recTibble)}
-              
               recommendedOntologies <- recTibble[1:NUM_REC_ONTO] 
               for (i in 1:NUM_REC_ONTO) {
                 thisTerm <- filter(ontologyTibble, Acronym == recommendedOntologies[i]) %>% 
                   select(FullName)
-                recommendedOntologies <- replace(recommendedOntologies, i, paste(recommendedOntologies[i], unlist(unname(thisTerm)), 
-                                                                                 " ", collapse = " "))
+                if (!is.null(ontologyTibble$Version)) {
+                  thisVersion <- filter(ontologyTibble, Acronym == recommendedOntologies[i]) %>%
+                    select(Version)
+                  recommendedOntologies <- replace(recommendedOntologies, i, paste(recommendedOntologies[i], unlist(unname(thisTerm)), 
+                                                                                   paste0('(', thisVersion, ')'),  " ", collapse = " "))
+                  # Make a combination column for use in the selecticize input
+                  ontologyTibble <- mutate(ontologyTibble, Combined = paste(Acronym, FullName, paste0('(', Version, ')'), " "))
+                } else {
+                  recommendedOntologies <- replace(recommendedOntologies, i, paste(recommendedOntologies[i], unlist(unname(thisTerm)), 
+                                                                                   " ", collapse = " "))
+                }
               }
             }
           }
@@ -157,7 +174,7 @@ output$ontologySelector <- renderUI({
                      "Select Ontology:",
                      helpButton("Select an ontology from BioPortal.")),
                    choices = list('Recommended Ontologies' = c("", recommendedOntologies),
-                                  'All Ontologies' = listOfOntNames),
+                                  'All Ontologies' = ontologyTibble$Combined), # FIXME changed from listOfOntNames
                    options = list(placeholder = "Select ontology or start typing...",
                                   closeAfterSelect = TRUE),
                                   )

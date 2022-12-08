@@ -157,7 +157,7 @@ output$uploadPreview <- renderText({
 })
 
 # Load ontology versions in the background as soon as the user connects
-callSubmissionsApi <- function() { ### FIXME
+callSubmissionsApi <- function() {
   # Check to make sure OntologyVersionList exists
   if (!file.exists(ONTOLOGY_VERSION_LIST_FILE_PATH)) {
     file.create(ONTOLOGY_VERSION_LIST_FILE_PATH)
@@ -177,27 +177,33 @@ callSubmissionsApi <- function() { ### FIXME
       
     } else {
       # If ontology list is already downloaded
-      listOfOntNames = <- readLines(ONTOLOGY_LIST_FILE_PATH)
-      listOfOntNames = <<- lapply(listOfOntNames, noquote)
+      listOfOntNames <- readLines(ONTOLOGY_LIST_FILE_PATH)
+      listOfOntNames <<- lapply(listOfOntNames, noquote)
+      ontologyVersions = data.frame(matrix(ncol = 2, nrow = 0))
       for (ontology in listOfOntNames) {
-        res <- R.utils::withTimeout({
-        ontologiesVersionResponse <- GET(paste0("http://data.bioontology.org/ontologies/", i, "/submissions?apikey=", API_KEY))
-        bioportalOntologies <- content(bioportalOntologiesResponse, "parsed")
-        }, timeout = TIMEOUT_TIME)
-      }
-      
-      if (is.null(bioportalOntologies)) {
-        showModal(modalDialog(title = "BioPortal Unavailable for Access",
-                              p("BioPortal seems to be down, please check ",
-                                (a(href = 'https://bioportal.bioontology.org/', 'BioPortal')), " to see if it is working. 
+        acronym = str_split(ontology, ' - ')[[1]][1]
+        tryCatch({
+          res <- R.utils::withTimeout({
+            ontologyVersionResponse <- GET(paste0("http://data.bioontology.org/ontologies/", acronym, "/submissions?apikey=", API_KEY))
+            ontologyVersion <- content(ontologyVersionResponse, "parsed", encoding = 'UTF-8')
+          }, timeout = TIMEOUT_TIME)
+        }, error = function(er) {
+        }, finally = {
+          if (is.null(ontologyVersion)) {
+            showModal(modalDialog(title = "BioPortal Unavailable for Access",
+                                  p("BioPortal seems to be down, please check ",
+                                    (a(href = 'https://bioportal.bioontology.org/', 'BioPortal')), " to see if it is working. 
                                 You may need to try again later. We apologize for the inconvenience."),
-                              footer = NULL,
-                              easyClose = F))
-        }
-      bioportalOntologiesDataFrame <- data.frame(t(sapply(bioportalOntologies,c)))
-      bioportalOntologiesDataFrame$nameAndAcronymn = paste0(bioportalOntologiesDataFrame$acronym, " - ", bioportalOntologiesDataFrame$name) # Makes a column with both acronym and name
-      listOfOntNames <<- bioportalOntologiesDataFrame[, ncol(bioportalOntologiesDataFrame)] # This accesses the last column of the dataframe
-      write.table(listOfOntNames, file = ONTOLOGY_LIST_FILE_PATH, append = FALSE, quote = FALSE,
+                                  footer = NULL,
+                                  easyClose = F))
+          }
+        })
+        ontologyVersionDataFrame <- data.frame(t(sapply(ontologyVersion, c)))
+        version = ontologyVersionDataFrame$version[[1]]
+        ontologyVersions = rbind(ontologyVersions, c(acronym, version))
+      }
+      colnames(ontologyVersions) = c("Acronym", "Version")
+      write.table(ontologyVersions, file = ONTOLOGY_VERSION_LIST_FILE_PATH, append = FALSE, quote = FALSE,
                   row.names = FALSE, col.names = FALSE)
     }
   }
@@ -207,12 +213,7 @@ callSubmissionsApi <- function() { ### FIXME
   }
 }
 
-future_async(callSubmissionsApi()) -> promise %>%
-  then(
-    onFulfilled = function(value) {
-
-    },
-    onRejected = function(value) {
-
-    }
-  )
+future_promise({callSubmissionsApi()}) %...>%
+  (function(result) {
+    
+  })

@@ -6,9 +6,9 @@ output$outputFileNameUI <- renderUI({
               "Output File Name (without extension):",
               helpButton("Enter a name for the output file (do not include extension).")
             ),
-            value = paste0(
+            value = if (!is.null(input$userFile)) paste0(
               substr(input$userFile, 0, (nchar(input$userFile) - if (extension() == ".xlsx") 5 else 4)), "_GoodNomen"
-            )[1])
+            )[1] else NULL)
 })
 
 # Build the buttons for downloading output files
