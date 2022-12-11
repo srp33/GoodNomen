@@ -107,7 +107,10 @@ observeEvent(input$userFile, ignoreInit = T, {
 # Update column names when number of header rows is selected
 observeEvent(input$header, {
   numericHeader <- as.numeric(input$header)
-  setColNames(numericHeader + 1, if (numericHeader > 0) 1 else 0) 
+  setColNames(numericHeader + 1, if (numericHeader > 0) 1 else 0)
+  # ADD TEXT TO SCRIPT for modifying headers 
+  masterText <<- paste0(masterText, "\n\n# Set column names and format datasheet\n", 
+                        readInputFileText, "\n", values$headerText)
 }, ignoreNULL = TRUE)
 
 # Show widget for selecting which row to use as header
@@ -148,7 +151,7 @@ output$firstPageNext <- renderUI({
   if (input$headerPreview_rows_selected != "" && !is.null(input$headerPreview_rows_selected)) {
     actionButton("buttonLoadThenNext", "Next", style = "float: right; color: #fff; background-color: #2ca25f; border-color: #2ca25f")
   }
-}) 
+})
 
 # Display a summary of the data when file is uploaded
 output$uploadPreview <- renderText({

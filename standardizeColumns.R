@@ -96,7 +96,6 @@ output$ontologySelector <- renderUI({
           listOfOntVersions <<- lapply(listOfOntVersions, noquote)
           versionTibble <- tibble(value = listOfOntVersions)
           versionTibble <- separate(versionTibble, value, into = c("Acronym", "Version"), sep = "\\s", extra = "merge")
-          # versionTibble$FullName = sapply(versionTibble$FullName, function(x) paste0('- ', x))
           ontologyTibble = left_join(ontologyTibble, versionTibble)
         }
         
@@ -185,10 +184,6 @@ output$ontologySelector <- renderUI({
 observeEvent(input$ontologySelector, {
   
   values$ontName <<- input$ontologySelector
-
-  # ADD TEXT TO SCRIPT for modifying headers 
-  masterText <<- paste0(masterText, "\n\n# Set column names and format datasheet\n", 
-                        readInputFileText, "\n", values$headerText)
   
   # Parse the acronym from the ontology name and show it
   values$ontologyAcronym <<- strsplit(values$ontName, " ")[[1]][1]
