@@ -51,8 +51,13 @@ standardizeManually <- function() {
         } else {
           uri <- uri[1]
         }
-        row <- c(originalTerm, source, editThisColumn, ontologyTerm, uri, values$ontName)
-        names(row) <- c("Original_Term", "Source", "Column_Name", "Ontology_Term", "Ontology_Term_URI", "Ontology")
+        if (values$ontVersion != "") {
+          row <- c(originalTerm, source, editThisColumn, ontologyTerm, uri, values$ontName, values$ontVersion)
+          names(row) <- c("Original_Term", "Source", "Column_Name", "Ontology_Term", "Ontology_Term_URI", "Ontology", "Version")
+        } else {
+          row <- c(originalTerm, source, editThisColumn, ontologyTerm, uri, values$ontName)
+          names(row) <- c("Original_Term", "Source", "Column_Name", "Ontology_Term", "Ontology_Term_URI", "Ontology")
+        }
         rows <- rbind(rows, row)
       }
     }

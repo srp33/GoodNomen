@@ -16,7 +16,7 @@ listOfLibrariesUsed <- c("tidyverse")
 values <- reactiveValues(datasetInput = NULL, dataset = NULL, extraHeaders = NULL, headerText = NULL,
                          extension = "", terminology = NULL, lastSelectedEditColumn = "",
                          matches = NULL, ontologyAcronym = "", recommendedOntologies = NULL, 
-                         listOfOntNames = NULL, ontName = "", totalTermList = NULL, recTermsList = NULL, 
+                         listOfOntNames = NULL, ontName = "", ontVersion = "", totalTermList = NULL, recTermsList = NULL, 
                          synonyms = NULL, preferred = NULL)
 
 # Save the extension of the uploaded file (will be used as the default for how to save the output file)

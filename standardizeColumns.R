@@ -4,7 +4,7 @@
 output$editThisColumnSelector <- renderUI({
   selectizeInput(
     'editThisColumn', 
-    label = "Select Column to Standardize:", 
+    label = tagList("Select Column to Standardize:", span("*", style="color:red")), 
     choices = columns(), selected = values$lastSelectedEditColumn)
 })
 
@@ -170,7 +170,7 @@ output$ontologySelector <- renderUI({
     remove_modal_spinner()
     selectizeInput('ontologySelector',
                    label = div(
-                     "Select Ontology:",
+                     tagList("Select Ontology:", span("*", style="color:red")),
                      helpButton("Select an ontology from BioPortal.")),
                    choices = list('Recommended Ontologies' = c("", recommendedOntologies),
                                   'All Ontologies' = ontologyTibble$Combined), # FIXME changed from listOfOntNames
@@ -183,7 +183,13 @@ output$ontologySelector <- renderUI({
 # Handle downloading the ontology, check to see if it's locked
 observeEvent(input$ontologySelector, {
   
-  values$ontName <<- input$ontologySelector
+  if (str_detect(input$ontologySelector, fixed("("))) {
+    values$ontName <<- strsplit(input$ontologySelector, "[()]")[[1]][1]
+    values$ontVersion <<- strsplit(input$ontologySelector, "[()]")[[1]][2]
+  } else {
+    values$ontName <<- input$ontologySelector
+  }
+  
   
   # Parse the acronym from the ontology name and show it
   values$ontologyAcronym <<- strsplit(values$ontName, " ")[[1]][1]
@@ -278,8 +284,13 @@ observeEvent(input$columnRename, ignoreInit = T, {
     } else {
       uri <- uri[1]
     }
-    row <- c(originalTerm, source, NA, ontologyTerm, uri, values$ontName)
-    names(row) <- c("Original_Term", "Source", "Column_Name", "Ontology_Term", "Ontology_Term_URI", "Ontology")
+    if (values$ontVersion != "") {
+      row <- c(originalTerm, source, NA, ontologyTerm, uri, values$ontName, values$ontVersion)
+      names(row) <- c("Original_Term", "Source", "Column_Name", "Ontology_Term", "Ontology_Term_URI", "Ontology", "Version")
+    } else {
+      row <- c(originalTerm, source, NA, ontologyTerm, uri, values$ontName)
+      names(row) <- c("Original_Term", "Source", "Column_Name", "Ontology_Term", "Ontology_Term_URI", "Ontology")
+    }
     masterChanges <<- rbind(masterChanges, row)
   }
   showNotification(paste0("Column \"", input$editThisColumn, "\" has been renamed to \"", input$newColumn, ".\""))
