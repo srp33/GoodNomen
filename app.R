@@ -8,8 +8,7 @@ server <- function(input, output, session) {
   source('sharedFunctions.R', local = TRUE)
   source('matchingFunctions.R', local = TRUE)
   source('loadData.R', local = TRUE)
-  source('editData.R', local = TRUE)
-  source('updateColumnNames.R', local = TRUE)
+  source('standardizeColumns.R', local = TRUE)
   source('saveData.R', local = TRUE)
   source('tabNavigation.R', local = TRUE)
 }

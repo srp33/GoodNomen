@@ -25,6 +25,7 @@ RUN apt-get update -qq \
     stringdist \
     tidytext \
     writexl \
+    future \
   && rm -rf /srv/shiny-server/*
 
 COPY *.R /srv/shiny-server/GoodNomen/

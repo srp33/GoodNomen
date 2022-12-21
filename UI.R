@@ -8,7 +8,7 @@ helpButton <- function(message = "content", placement = "right") {
 }
 
 # Define accepted file types and the read_ functions used to load them
-extensionsMap <- c(".txt" = "txt", ".tsv" = "tsv", ".csv" = "csv", ".xls" = "excel", ".xlsx" = "excel")
+extensionsMap <- c(".txt" = "tsv", ".tsv" = "tsv", ".csv" = "csv", ".xls" = "excel", ".xlsx" = "excel")
 
 # Define function for collapsing a list with proper grammar
 collapseText <- function(inputList) {
@@ -40,19 +40,17 @@ ui <- fluidPage(
                                      textOutput("inputError"), tags$head(tags$style("#inputError {color: red;}")),
                                      uiOutput("headerSelector"),
                                      uiOutput("colnamesSelector"), br(),
-                                     uiOutput("ontologySelector"),
-                                     textOutput("error"), tags$head(tags$style("#error {color: red;}")), br(),
                                      uiOutput("firstPageNext"), br(), br()), 
                         # Data Preview 
                         mainPanel(width = RIGHT_COLUMN_WIDTH,
                           conditionalPanel(condition = 'input.header', wellPanel(uiOutput("uploadPreview")))
                         ))),
-             
-             # Edit Data (Auto/Manual) ---------------------------------------------------------------
-             tabPanel('Edit Data', value = 'editTable', 
+                        
+             # Standardize Columns ---------------------------------------------------------------
+             tabPanel('Standardize Columns', value = 'standardizeColumns',
                       sidebarPanel(width = LEFT_COLUMN_WIDTH,
                                    tags$img(src = 'Logo.png', align = "right", height = "100px"),
-                                   h4("Edit Data"),
+                                   h4("Standardize Columns"),
                                    p(
                                      paste(
                                        "Data may be standardized automatically or manually.",
@@ -64,40 +62,11 @@ ui <- fluidPage(
                                        "When finished, press \"Next.\""
                                      )
                                    ), br(),
-                                   htmlOutput("selectedOntology"),
-                                   actionButton('changeOntology', label = div("Change Ontology", helpButton("Click to change which ontology you want to use")),
-                                                style = "color: #fff; background-color: #a1d99b; border-color: #a1d99b;", width = "100%"), br(), br(),
                                    uiOutput("editThisColumnSelector"),
-                                   fluidRow(column(width = 6, uiOutput("automatch")), 
-                                             column(width = 6, uiOutput("manual"))),
-                                   uiOutput("resetAndSave"), br(),
-                                   uiOutput("cancelChangeOntology"),
-                                   div(
-                                     actionButton('editBack', "Back", css.class = "back_button", style = "color: #fff; background-color: #6baed6; border-color: #6baed6;"),
-                                     actionButton('editNext', "Next", css.class = "next_button", style = "float: right; color: #fff; background-color: #2ca25f; border-color: #2ca25f;"))
-                      ),
-                      mainPanel(width = RIGHT_COLUMN_WIDTH,
-                        tags$em(textOutput("editDataPreviewText")),
-                        wellPanel(dataTableOutput('singleColumn'), style = "display: table")
-                      )
-             ),
-             
-             # Update Column Names -----------------------------------------------------
-             tabPanel('Update Column Names', value = 'updateColumnNames',
-                      sidebarPanel(width = LEFT_COLUMN_WIDTH,
-                                   tags$img(src = 'Logo.png', align = "right", height = "100px"),
-                                   h4("Update Column Names"),
-                                   p(
-                                     paste(
-                                       "If desired, select a column to rename and a new column name. When a column to rename is selected,",
-                                       "the new column name box will be autofilled with a suggested name if a matching term is found in the",
-                                       "ontology. This term may be changed. Press \"Rename\" to update. Multiple columns may be renamed.",
-                                       "When finished, press \"Next.\""
-                                     )
-                                   ), 
-                                   uiOutput("editColumnSelector"),
+                                   uiOutput("ontologySelector"),
+                                   uiOutput("RenameColumnsHeader"),
                                    conditionalPanel(
-                                     condition = 'input.editColumn',
+                                     condition = 'input.editThisColumn',
                                      selectizeInput(
                                        'newColumn',
                                        label = "Select New Column Name:",
@@ -106,7 +75,10 @@ ui <- fluidPage(
                                                       closeAfterSelect = TRUE)
                                      ),
                                      uiOutput("columnRenameButton")
-                                   ), 
+                                   ),
+                                   uiOutput("EditValuesHeader"),
+                                   fluidRow(column(width = 6, uiOutput("automatch")), 
+                                            column(width = 6, uiOutput("manual"))),
                                    bsModal(# Warning if user does not select column to rename and new column name
                                      'columnModal',
                                      title = "Error",
@@ -122,15 +94,14 @@ ui <- fluidPage(
                                      HTML(paste('<p color="black">The selected new column name is already being used as a column name.", 
                                                 "Please close this window and select a different name.</p>')),
                                      tags$head(tags$style("#equalModal {color: red;}"))
-                                   ), br(), div(
-                                     actionButton('columnBack', "Back", class = "back_button"),
-                                     actionButton('columnSubmit', "Next", class = "next_button")
-                                   )
-                      ), 
-                      # Data Preview 
+                                   ), br(),
+                                   div(
+                                      actionButton('standardizeBack', "Back", css.class = "back_button", style = "color: #fff; background-color: #6baed6; border-color: #6baed6;"),
+                                      actionButton('standardizeNext', "Next", css.class = "next_button", style = "float: right; color: #fff; background-color: #2ca25f; border-color: #2ca25f;"))
+                      ),
                       mainPanel(width = RIGHT_COLUMN_WIDTH,
-                        tags$em(textOutput("updateColNamesPreviewText")),
-                        wellPanel(dataTableOutput("updateSingleColumn"), style = "display: table")
+                        tags$em(textOutput("standardizeColumnsPreviewText")),
+                        wellPanel(dataTableOutput('singleColumn'), style = "display: table")
                       )
              ),
              

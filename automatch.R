@@ -4,6 +4,8 @@
 output$automatch <- renderUI({
   if (input$ontologySelector != "" && !is.null(input$ontologySelector) && input$editThisColumn != "" && !is.null(input$editThisColumn)) {
     actionButton('automatch', label = div("Auto-match", helpButton("Matches will be found based on synonyms in the selected ontology")), width = "100%")
+  } else {
+    HTML('<p>Once you select a column and ontology, you can edit values here</p>')
   }
 })
 
@@ -173,8 +175,13 @@ observeEvent(input$automatchSave, ignoreInit = T, {
         source <- "Data value"
         ontologyTerm <- ontologyTerms[i]
         uri <- values$ids[which(values$preferred == ontologyTerm)][1]
-        row <- c(originalTerm, source, columnNameOfChangedTerms, ontologyTerm, uri)
-        names(row) <- c("Original_Term", "Source", "Column_Name", "Ontology_Term", "Ontology_Term_URI")
+        if (values$ontVersion != "") {
+          row <- c(originalTerm, source, columnNameOfChangedTerms, ontologyTerm, uri, values$ontName, values$ontVersion)
+          names(row) <- c("Original_Term", "Source", "Column_Name", "Ontology_Term", "Ontology_Term_URI", "Ontology", "Version")
+        } else {
+          row <- c(originalTerm, source, columnNameOfChangedTerms, ontologyTerm, uri, values$ontName)
+          names(row) <- c("Original_Term", "Source", "Column_Name", "Ontology_Term", "Ontology_Term_URI", "Ontology")
+        }
         rows <- rbind(rows, row)
       }
       masterChanges <<- rbind(masterChanges, rows)
