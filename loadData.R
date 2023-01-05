@@ -125,6 +125,10 @@ output$colnamesSelector <- renderUI({
 
 # Display options to use for column names
 output$headerPreview <- renderDT({
+  if (NUM_DISPLAY_COLS > length(colnames(values$datasetInput)))
+  {
+    NUM_DISPLAY_COLS = length(colnames(values$datasetInput))
+  }
   datatable(
     values$datasetInput[1:NUM_DISPLAY_ROWS,],
     rownames = FALSE,
