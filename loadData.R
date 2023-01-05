@@ -220,7 +220,4 @@ callSubmissionsApi <- function() {
   }
 }
 
-future_promise({callSubmissionsApi()}) %...>%
-  (function(result) {
-    
-  })
+future({callSubmissionsApi()})
