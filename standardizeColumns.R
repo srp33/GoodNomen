@@ -207,7 +207,7 @@ observeEvent(input$ontologySelector, {
   }
 })
 
-# Display headers for subsections (only necessary to have them render at the time I want to be more user friendly)
+# Display headers for subsections (it's only necessary to have them in the server to have them render at the time I want to be more user friendly)
 output$RenameColumnsHeader <- renderUI({
   h4('Rename Columns')
 })
@@ -294,6 +294,7 @@ observeEvent(input$columnRename, ignoreInit = T, {
     masterChanges <<- rbind(masterChanges, row)
   }
   showNotification(paste0("Column \"", input$editThisColumn, "\" has been renamed to \"", input$newColumn, ".\""))
+  values$lastSelectedEditColumn = newColumn
 })
 
 # Render message if the user has not uploaded data
